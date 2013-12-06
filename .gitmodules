@@ -1,3 +1,6 @@
 [submodule "plotuino/struct"]
 	path = plotuino/struct
 	url = git://github.com/rjehangir/struct.git
+[submodule "struct"]
+	path = struct
+	url = git://github.com/rjehangir/struct.git
