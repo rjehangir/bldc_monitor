@@ -1,0 +1,3 @@
+[submodule "plotuino/struct"]
+	path = plotuino/struct
+	url = git://github.com/rjehangir/struct.git
