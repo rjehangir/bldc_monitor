@@ -12,54 +12,58 @@ class SerialConnection:
 	def openConnection(self,port,baudrate):
 		self.ser = serial.Serial(port,baudrate,timeout=10)
 	
-	# This function is temporary for testing purposes.
-	def readMessage(self):
+	## This function is temporary for testing purposes.
+	def readMessageFake(self):
 		return np.random.normal(size=4)
 		
-	#def readMessage(self):
-		#preamble = ['\xFF','\xFA'];
-		#input = [0x00,0x00]
-		#input[1] = ser.read(1)
-		#while ( True ):
-			#if ( input == preamble ):
-				#break
-			#else:
-				#input[0] = input[1]
-				#input[1] = ser.read(1)
+	def readMessage(self):
+		preamble = ['\xFF','\xFA'];
+		input = [0x00,0x00]
+		input[1] = self.ser.read(1)
+		while ( True ):
+			if ( input == preamble ):
+				break
+			else:
+				input[0] = input[1]
+				input[1] = self.ser.read(1)
 
 		#Get length
-		#length = ser.read(1)
+		length = ord(self.ser.read(1))
 
 		#Get data
-		#data = ser.read(ord(length))
+		data = self.ser.read(length)
 
 		#Get checksum
-		#input = ser.read(2)
-		#checksum = struct.unpack('H',input)[0]
+		input = self.ser.read(2)
+		checksum = struct.unpack('H',input)[0]
 
 		#Verify checksum
-		#crc16 = crcmod.mkCrcFun(0x11021,0xFFFF,True)
-		#calcChecksum = crc16(data)
-		#calcChecksum = (~calcChecksum) % 2**16  # convert to uint16_t
+		crc16 = crcmod.mkCrcFun(0x11021,0xFFFF,True)
+		calcChecksum = crc16(data)
+		calcChecksum = (~calcChecksum) % 2**16  # convert to uint16_t
 
-		#if ( checksum != calcChecksum ):
-			#print "Failed checksum."
-			#continue
+		if ( checksum != calcChecksum ):
+			print "Failed checksum."
+			return
 		      
 		#Break data into useful parts
-		#messageType = struct.unpack('H',data[0:2])[0]
-		#numValues = int(length/4)
-		#values = []
-		#for i in range(numValues):
-			#values.append(struct.unpack('f',data[4*i+2:4*i+6])[0])
+		messageType = struct.unpack('H',data[0:2])[0]
+		numValues = int(length/4)
+		values = []
+		for i in range(numValues):
+			values.append(struct.unpack('f',data[4*i+1:4*i+5])[0])
 
-		#return values
+		return values
 
 
 #######################################
 app = QtGui.QApplication([])
 
 sercon = SerialConnection()
+
+sercon.openConnection('/dev/ttyACM0',115200)
+
+time.sleep(0.5)
 
 win = pg.GraphicsWindow(title="Plotuino")
 win.resize(1000,600)
@@ -106,7 +110,7 @@ startTime = time.time()
 
 def update():
 	global timeData,yData
-	values = sercon.readMessage()
+	values = sercon.readMessageFake()
 	for i in range(len(yData)):
 		yData[i] = np.append(yData[i],values[i])
 	timeData = np.append(timeData,time.time()-startTime)
