@@ -70,6 +70,7 @@ pg.setConfigOptions(antialias=True)
 
 plots = []
 curves = []
+textValues = []
 timeData = np.ndarray(0)
 yData = [np.ndarray(0),np.ndarray(0),np.ndarray(0),np.ndarray(0)]
 
@@ -88,6 +89,8 @@ colors = ['r','g','b','y']
 
 for i in range(len(plots)):
 	curves.append(plots[i].plot(pen=colors[i]))
+	textValues.append(pg.TextItem(text='',anchor=(1,0),color='w'))
+	plots[i].addItem(textValues[i])
 	
 	plots[i].enableAutoRange('y', True)
 	plots[i].enableAutoRange('x', False)
@@ -116,12 +119,14 @@ def redraw():
 	global timeData,yData,curves
 	for i in range(len(curves)):
 		curves[i].setData(timeData,yData[i])
-	for p in plots:
-		vr = p.viewRange()
+		textValues[i].setText('%10.2f'%float(yData[i][len(yData[i])-1]))
+	for i in range(len(plots)):
+		vr = plots[i].viewRange()
 		xwidth = vr[0][1]-vr[0][0]
-		p.setXRange(timeData[len(timeData)-1]-xwidth,timeData[len(timeData)-1],padding=0,update=False)
-		p.enableAutoRange('y',True)
-		p.setAutoPan(x=True)
+		plots[i].setXRange(timeData[len(timeData)-1]-xwidth,timeData[len(timeData)-1],padding=0,update=False)
+		plots[i].enableAutoRange('y',True)	
+		vr = plots[i].viewRange()
+		textValues[i].setPos(vr[0][1],vr[1][1])
 	
 timer = QtCore.QTimer()
 timer.timeout.connect(update)
