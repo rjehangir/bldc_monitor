@@ -135,11 +135,14 @@ void measureVoltage(float dt) {
  * 
  * 0.004883 V/step x 1/0.083 A/V = 0.05883 A/step
  * 
+ * The sensor measures +- 25A and is centered at V_ref/2 = 2.5 V or 511 steps.
+ * 
  * A low pass filter is also used on the current measurement to smooth it out
  * slightly. The low pass filter has a time constant of 0.1 s.
  */
 void measureCurrent(float dt) {
   const static float k = 0.05883;
+  const static float center = 511;
   const static float tau = 0.1;
   
   static bool initialized = false;
@@ -150,7 +153,7 @@ void measureCurrent(float dt) {
   
   float alpha = dt/(dt+tau);
   
-  current = current*(1-alpha) + analogRead(CURRENT_SENSE_PIN)*k*alpha;
+  current = current*(1-alpha) + (analogRead(CURRENT_SENSE_PIN)-center)*k*alpha;
 }
 
 void setup() {
