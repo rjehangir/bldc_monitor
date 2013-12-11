@@ -1,9 +1,87 @@
 #include <WProgram.h>
+#include <util/atomic.h>
 #include "../../plotuino.h"
 
 #define VOLTAGE_SENSE_PIN A0
 #define CURRENT_SENSE_PIN A1
 #define FORCE_SENSE_PIN A2
+#define TACHOMETER_INT_PIN 3
+
+#define NUMBER_OF_MOTOR_POLES 12
+
+volatile uint32_t pulseCount = 0;
+volatile uint32_t pulseTimer = 0;
+volatile uint32_t lastPulseTimer = 0;
+volatile int32_t rps = 0;
+
+uint32_t outputTimer = 0;
+
+float voltage = 0;
+float current = 0;
+float filteredRPM = 0;
+
+/** The following interrupt routine captures pulses from the optocouple/low-pass
+ * circuit. A timeout is implemented to prevent counting a single pulse as multiple
+ * pulses (basically debouncing the pulse).
+ */
+ISR(INT1_vect) {
+  // Pulses are between 480 us and 200 us (at 1.67 kHz)
+  if ( micros()-lastPulseTimer > 500 ) {
+    pulseCount++;
+    lastPulseTimer = micros();
+  }
+  
+  if ( pulseCount > 10 ) {
+    rps = pulseCount/(float(micros()-pulseTimer)/1000000.0f);
+    pulseTimer = micros();
+    pulseCount = 0;
+  }
+}
+
+/** The RPM measurement is done in the interrupt handling code. If the motor
+ * stops then there are no interrupts and therefore the sensor hangs on the final 
+ * value instead of going to zero RPM. This function checks for more than 0.1 seconds
+ * with no pulses and resets the measurement to zero if necessary. The AVR "atomic"
+ * macros are used to prevent this function from being triggered falsely. */
+static __inline__ void checkForZeroPulses() {
+  uint32_t safePulseTimer = 0;
+  ATOMIC_BLOCK(ATOMIC_FORCEON)
+  {
+    safePulseTimer = pulseTimer;
+  }
+  
+  if ( micros()-safePulseTimer > 100000l ) {
+    rps = 0;
+  }
+}
+
+/** This function initializes the interrupt (INT1) for the tachometer
+ * pulses. It also has code to initialize the servo output, which will be
+ * moved to a separate function eventually.
+ */
+void initTachometer() {
+  // Initialize input/output pins
+  //pinMode(PWM_PIN,OUTPUT);
+  pinMode(TACHOMETER_INT_PIN,INPUT);
+  
+  // Initialize PWM output for 50 Hz (Digital pin 9)
+  TCCR1A = (1<<WGM11)|(1<<COM1A1)|(1<<COM1B1);
+  TCCR1B = (1<<WGM13)|(1<<WGM12)|(1<<CS11);
+  ICR1 = 40000; // CPU/prescaler/frequency = 16000000/8/50 = 10000 // 50 Hz PWM rate
+  
+  // Attach the interrupt pin (INT1, Arduino Pin 3)
+  EICRA = (EICRA & ~((1 << ISC10) | (1 << ISC11))) | (RISING << ISC10);
+  EIMSK |= (1 << INT1);
+}
+
+/** This function filters the RPM with a low-pass filter. */
+void filterRPM(float dt) {
+  const static float tau = 0.1;
+
+  float alpha = dt/(dt+tau);
+  
+  filteredRPM = filteredRPM*(1-alpha) + rps*60/NUMBER_OF_MOTOR_POLES*alpha;
+}
 
 /** This function measures the voltage of the power source with the ADC. The
  * power source is connected through a voltage divider consisting of a 10Kohm
@@ -34,33 +112,82 @@
  * 
  * alpha = 0.01/(0.01+0.1) = 0.0909
  */
-float measureVoltage(float dt) {
+void measureVoltage(float dt) {
   const static float k = 0.01527;
   const static float tau = 0.1;
   
-  static float voltage = analogRead(VOLTAGE_SENSE_PIN)*k; /// Initialization only happens on first call to function.
+  static bool initialized = false;
+  if ( !initialized ) {
+    initialized = true;
+    voltage = analogRead(VOLTAGE_SENSE_PIN)*k;
+  }
+  
   float alpha = dt/(dt+tau);
 
   voltage = voltage*(1-alpha) + analogRead(VOLTAGE_SENSE_PIN)*k*alpha;
-  
-  return voltage;
 }
 
-float measureCurrent() {
+/** This function measure the current supplied from the power source to the speed 
+ * controller using a Pololu ACS711LC carrier board. The output of this current 
+ * sensor is 0.083 V/A. Like specified above, the Atmega328p has a 10 bit ADC and
+ * 5.0 V reference voltage so that it has 0.004883 V/step. Combining this with the
+ * current sensor relation provides:
+ * 
+ * 0.004883 V/step x 1/0.083 A/V = 0.05883 A/step
+ * 
+ * A low pass filter is also used on the current measurement to smooth it out
+ * slightly. The low pass filter has a time constant of 0.1 s.
+ */
+void measureCurrent(float dt) {
+  const static float k = 0.05883;
+  const static float tau = 0.1;
   
-  return 0;
+  static bool initialized = false;
+  if ( !initialized ) {
+    initialized = true;
+    current = analogRead(CURRENT_SENSE_PIN)*k;
+  }
+  
+  float alpha = dt/(dt+tau);
+  
+  current = current*(1-alpha) + analogRead(CURRENT_SENSE_PIN)*k*alpha;
 }
 
 void setup() {
   Serial.begin(115200);
   Plotuino::init(&Serial);
+  initTachometer();
 }
 
 void loop() {
-  Plotuino::beginTransfer(0x01);
-  Plotuino::send(analogRead(0));
-  Plotuino::send(analogRead(1));
-  Plotuino::send(analogRead(2));
-  Plotuino::send(analogRead(3));
-  Plotuino::endTransfer();
+  
+  static long measurementTimer;
+  static long outputTimer;
+  
+  float dt = float(micros()-measurementTimer)/1000000l;
+  
+  /** Measurement loop. I would put this in a timer interrupt but since these
+   * are relatively long calculations the interrupt could block the RPM pulse
+   * interrupt from occuring. */
+  if ( dt > 0.005 ) {
+    measureVoltage(dt);
+    measureCurrent(dt);
+    checkForZeroPulses();
+    filterRPM(dt);
+  }
+  
+  /** Output loop. Output frequency can be adjusted. Currently, the output message
+   * is 2+1+1+4*4+2 = 22 bytes = 176 bits/message. Therefore, at 115200 bps, 
+   * 
+   * 115200 bits/s x 1/176 messages/bit = 654 messages/s
+   * 
+   * can be sent under ideal conditions. In practice, this number will be lower. */
+  if ( float(micros()-outputTimer)/1000000l > 0.1 ) {
+    Plotuino::beginTransfer(0x01);
+    Plotuino::send(voltage);
+    Plotuino::send(current);
+    Plotuino::send(voltage*current);
+    Plotuino::send(filteredRPM);
+    Plotuino::endTransfer();
+  }
 }
