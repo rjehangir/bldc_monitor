@@ -41,10 +41,13 @@ float measureVoltage() {
   static float voltage = analogRead(VOLTAGE_SENSE_PIN)*k; /// Initialization only happens on first call to function.
 
   voltage = voltage*(1-alpha) + analogRead(VOLTAGE_SENSE_PIN)*k*alpha;
+  
+  return voltage;
 }
 
 float measureCurrent() {
   
+  return 0;
 }
 
 void setup() {
