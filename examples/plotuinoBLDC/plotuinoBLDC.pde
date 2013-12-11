@@ -34,11 +34,12 @@
  * 
  * alpha = 0.01/(0.01+0.1) = 0.0909
  */
-float measureVoltage() {
-  const static float alpha = 0.0909;
+float measureVoltage(float dt) {
   const static float k = 0.01527;
+  const static float tau = 0.1;
   
   static float voltage = analogRead(VOLTAGE_SENSE_PIN)*k; /// Initialization only happens on first call to function.
+  float alpha = dt/(dt+tau);
 
   voltage = voltage*(1-alpha) + analogRead(VOLTAGE_SENSE_PIN)*k*alpha;
   
