@@ -142,13 +142,13 @@ void measureVoltage(float dt) {
  */
 void measureCurrent(float dt) {
   const static float k = 0.05883;
-  const static float center = 511;
   const static float tau = 0.1;
+  const static int16_t center = 511;
   
   static bool initialized = false;
   if ( !initialized ) {
     initialized = true;
-    current = analogRead(CURRENT_SENSE_PIN)*k;
+    current = (analogRead(CURRENT_SENSE_PIN)-center)*k;
   }
   
   float alpha = dt/(dt+tau);
@@ -186,11 +186,16 @@ void loop() {
    * 
    * can be sent under ideal conditions. In practice, this number will be lower. */
   if ( float(micros()-outputTimer)/1000000l > 0.1 ) {
+    outputTimer = micros();
     Plotuino::beginTransfer(0x01);
     Plotuino::send(voltage);
     Plotuino::send(current);
     Plotuino::send(voltage*current);
     Plotuino::send(filteredRPM);
     Plotuino::endTransfer();
+//     Serial.print(voltage);Serial.print(" ");
+//     Serial.print(current);Serial.print(" ");
+//     Serial.print(voltage*current);Serial.print(" ");
+//     Serial.print(filteredRPM);Serial.println(" ");
   }
 }

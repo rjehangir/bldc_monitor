@@ -10,7 +10,10 @@ import time
 
 class SerialConnection:
 	def openConnection(self,port,baudrate):
-		self.ser = serial.Serial(port,baudrate,timeout=10)
+		self.ser = serial.Serial(port,baudrate,timeout=0.25)
+		time.sleep(1.0)
+		if self.ser.isOpen():
+			print "Serial port opened."
 	
 	## This function is temporary for testing purposes.
 	def readMessageFake(self):
@@ -29,6 +32,9 @@ class SerialConnection:
 
 		#Get length
 		length = ord(self.ser.read(1))
+		
+		while ( self.ser.inWaiting() < length + 2 ):
+			pass
 
 		#Get data
 		data = self.ser.read(length)
@@ -62,8 +68,6 @@ app = QtGui.QApplication([])
 sercon = SerialConnection()
 
 sercon.openConnection('/dev/ttyACM0',115200)
-
-time.sleep(0.5)
 
 win = pg.GraphicsWindow(title="Plotuino")
 win.resize(1000,600)
@@ -110,14 +114,17 @@ startTime = time.time()
 
 def update():
 	global timeData,yData
-	values = sercon.readMessageFake()
-	for i in range(len(yData)):
-		yData[i] = np.append(yData[i],values[i])
-	timeData = np.append(timeData,time.time()-startTime)
-	if ( len(timeData) > 1000 ):
-		timeData = np.delete(timeData,0,0)
+	values = sercon.readMessage()
+	if values is not None:
 		for i in range(len(yData)):
-			yData[i] = np.delete(yData[i],0,0)
+			yData[i] = np.append(yData[i],values[i])
+			print "%g "%(float(values[i])),
+		print ""
+		timeData = np.append(timeData,time.time()-startTime)
+		if ( len(timeData) > 1000 ):
+			timeData = np.delete(timeData,0,0)
+			for i in range(len(yData)):
+				yData[i] = np.delete(yData[i],0,0)
 	
 def redraw():
 	global timeData,yData,curves
@@ -131,10 +138,10 @@ def redraw():
 		plots[i].enableAutoRange('y',True)	
 		vr = plots[i].viewRange()
 		textValues[i].setPos(vr[0][1],vr[1][1])
-	
+		
 timer = QtCore.QTimer()
 timer.timeout.connect(update)
-timer.start(100)
+timer.start(25)
 
 timer2 = QtCore.QTimer()	 
 timer2.timeout.connect(redraw)
