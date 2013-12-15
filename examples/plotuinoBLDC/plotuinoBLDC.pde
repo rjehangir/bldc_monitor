@@ -143,7 +143,7 @@ void measureVoltage(float dt) {
 void measureCurrent(float dt) {
   const static float k = 0.05883;
   const static float tau = 0.1;
-  const static int16_t center = 511;
+  const static int16_t center = 520;
   
   static bool initialized = false;
   if ( !initialized ) {
@@ -195,6 +195,7 @@ void loop() {
     Plotuino::endTransfer();
 //     Serial.print(voltage);Serial.print(" ");
 //     Serial.print(current);Serial.print(" ");
+//     Serial.print(analogRead(CURRENT_SENSE_PIN));Serial.print(" ");
 //     Serial.print(voltage*current);Serial.print(" ");
 //     Serial.print(filteredRPM);Serial.println(" ");
   }
