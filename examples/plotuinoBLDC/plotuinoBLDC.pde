@@ -192,6 +192,7 @@ void loop() {
     Plotuino::send(current);
     Plotuino::send(voltage*current);
     Plotuino::send(filteredRPM);
+    Plotuino::send(filteredRPM/voltage);
     Plotuino::endTransfer();
 //     Serial.print(voltage);Serial.print(" ");
 //     Serial.print(current);Serial.print(" ");

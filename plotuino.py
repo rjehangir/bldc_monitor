@@ -17,7 +17,7 @@ class SerialConnection:
 	
 	## This function is temporary for testing purposes.
 	def readMessageFake(self):
-		return np.random.normal(size=4)
+		return np.random.normal(size=5)
 		
 	def readMessage(self):
 		preamble = ['\xFF','\xFA'];
@@ -67,7 +67,7 @@ app = QtGui.QApplication([])
 
 sercon = SerialConnection()
 
-sercon.openConnection('/dev/ttyACM0',115200)
+#sercon.openConnection('/dev/ttyACM0',115200)
 
 win = pg.GraphicsWindow(title="Plotuino")
 win.resize(1000,600)
@@ -80,20 +80,22 @@ plots = []
 curves = []
 textValues = []
 timeData = np.ndarray(0)
-yData = [np.ndarray(0),np.ndarray(0),np.ndarray(0),np.ndarray(0)]
+yData = [np.ndarray(0),np.ndarray(0),np.ndarray(0),np.ndarray(0),np.ndarray(0)]
 
 plots.append(win.addPlot(title="Voltage"))
 plots.append(win.addPlot(title="Current"))
 win.nextRow()
 plots.append(win.addPlot(title="Power"))
 plots.append(win.addPlot(title="RPM"))
+plots.append(win.addPlot(title="RPM/V"))
 
 plots[0].setLabel('left',"Volts",units='V')
 plots[1].setLabel('left',"Current",units='A')
 plots[2].setLabel('left',"Power",units='W')
 plots[3].setLabel('left',"RPM",units='RPM')
+plots[4].setLabel('left',"RPM/V (AKA Kv)",units='RPM/V')
 
-colors = ['r','g','b','y']
+colors = ['r','g','b','y','c']
 
 for i in range(len(plots)):
 	curves.append(plots[i].plot(pen=colors[i]))
@@ -109,12 +111,13 @@ for i in range(len(plots)):
 plots[1].setXLink(plots[0])
 plots[2].setXLink(plots[0])
 plots[3].setXLink(plots[0])
+plots[4].setXLink(plots[0])
 
 startTime = time.time()
 
 def update():
 	global timeData,yData
-	values = sercon.readMessage()
+	values = sercon.readMessageFake()
 	if values is not None:
 		for i in range(len(yData)):
 			yData[i] = np.append(yData[i],values[i])
