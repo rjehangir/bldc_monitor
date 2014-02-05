@@ -191,6 +191,7 @@ void loop() {
     Plotuino::send(voltage);
     Plotuino::send(current);
     Plotuino::send(voltage*current);
+    Plotuino::send(0.0f); // Thrust
     Plotuino::send(filteredRPM);
     Plotuino::send(filteredRPM/voltage);
     Plotuino::endTransfer();

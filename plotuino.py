@@ -17,7 +17,7 @@ class SerialConnection:
 	
 	## This function is temporary for testing purposes.
 	def readMessageFake(self):
-		return np.random.normal(size=5)
+		return np.random.normal(size=6)
 		
 	def readMessage(self):
 		preamble = ['\xFF','\xFA'];
@@ -67,7 +67,13 @@ app = QtGui.QApplication([])
 
 sercon = SerialConnection()
 
-#sercon.openConnection('/dev/ttyACM0',115200)
+connected = False
+try:
+	sercon.openConnection('/dev/ttyACM0',115200)
+	connected = True
+except:
+	connected = False
+	print "Error connecting to serial port. Defaulting to random data."
 
 win = pg.GraphicsWindow(title="Plotuino")
 win.resize(1000,600)
@@ -80,22 +86,24 @@ plots = []
 curves = []
 textValues = []
 timeData = np.ndarray(0)
-yData = [np.ndarray(0),np.ndarray(0),np.ndarray(0),np.ndarray(0),np.ndarray(0)]
+yData = [np.ndarray(0),np.ndarray(0),np.ndarray(0),np.ndarray(0),np.ndarray(0),np.ndarray(0)]
 
 plots.append(win.addPlot(title="Voltage"))
 plots.append(win.addPlot(title="Current"))
-win.nextRow()
 plots.append(win.addPlot(title="Power"))
+win.nextRow()
+plots.append(win.addPlot(title="Thrust"))
 plots.append(win.addPlot(title="RPM"))
 plots.append(win.addPlot(title="RPM/V"))
 
 plots[0].setLabel('left',"Volts",units='V')
 plots[1].setLabel('left',"Current",units='A')
 plots[2].setLabel('left',"Power",units='W')
-plots[3].setLabel('left',"RPM",units='RPM')
-plots[4].setLabel('left',"RPM/V (AKA Kv)",units='RPM/V')
+plots[3].setLabel('left',"Thrust",units='lbs')
+plots[4].setLabel('left',"RPM",units='RPM')
+plots[5].setLabel('left',"RPM/V (AKA Kv)",units='RPM/V')
 
-colors = ['r','g','b','y','c']
+colors = ['r','g','b','y','c','r']
 
 for i in range(len(plots)):
 	curves.append(plots[i].plot(pen=colors[i]))
@@ -112,17 +120,21 @@ plots[1].setXLink(plots[0])
 plots[2].setXLink(plots[0])
 plots[3].setXLink(plots[0])
 plots[4].setXLink(plots[0])
+plots[5].setXLink(plots[0])
 
 startTime = time.time()
 
 def update():
 	global timeData,yData
-	values = sercon.readMessageFake()
+	if connected:
+		values = sercon.readMessage()
+	else:
+		values = sercon.readMessageFake()
 	if values is not None:
 		for i in range(len(yData)):
 			yData[i] = np.append(yData[i],values[i])
-			print "%g "%(float(values[i])),
-		print ""
+			#print "%g "%(float(values[i])),
+		#print ""
 		timeData = np.append(timeData,time.time()-startTime)
 		if ( len(timeData) > 1000 ):
 			timeData = np.delete(timeData,0,0)
