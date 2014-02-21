@@ -9,6 +9,11 @@
 
 #define NUMBER_OF_MOTOR_POLES 12
 
+#define DISTANCE_FROM_PROPELLER_AXIS_TO_PIVOT (10.0f)
+#define DISTANCE_FROM_LOAD_CELL_AXIS_TO_PIVOT (12.0f)
+
+#define FORCE_RATIO (DISTANCE_FROM_LOAD_CELL_AXIS_TO_PIVOT/DISTANCE_FROM_PROPELLER_AXIS_TO_PIVOT)
+
 volatile uint32_t pulseCount = 0;
 volatile uint32_t pulseTimer = 0;
 volatile uint32_t lastPulseTimer = 0;
@@ -206,6 +211,12 @@ void setTareForce() {
   tareThrust = thrust;
 }
 
+/** Calculates the motor thrust from the measured force, tare force, and force ratio
+ * based on the moment arm lengths that are defined at the top. */
+float getThrust() {
+  return (thrust-tareThrust)*FORCE_RATIO;
+}
+
 void setup() {
   Serial.begin(115200);
   Plotuino::init(&Serial);
@@ -242,14 +253,9 @@ void loop() {
     Plotuino::send(voltage);
     Plotuino::send(current);
     Plotuino::send(voltage*current);
-    Plotuino::send(thrust-tareThrust); // Thrust
+    Plotuino::send(getThrust()); // Thrust
     Plotuino::send(filteredRPM);
     Plotuino::send(filteredRPM/voltage);
     Plotuino::endTransfer();
-//     Serial.print(voltage);Serial.print(" ");
-//     Serial.print(current);Serial.print(" ");
-//     Serial.print(analogRead(CURRENT_SENSE_PIN));Serial.print(" ");
-//     Serial.print(voltage*current);Serial.print(" ");
-//     Serial.print(filteredRPM);Serial.println(" ");
   }
 }
