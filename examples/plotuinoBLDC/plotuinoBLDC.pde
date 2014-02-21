@@ -19,6 +19,8 @@ uint32_t outputTimer = 0;
 float voltage = 0;
 float current = 0;
 float filteredRPM = 0;
+float thrust = 0;
+float tareThrust = 0;
 
 /** The following interrupt routine captures pulses from the optocouple/low-pass
  * circuit. A timeout is implemented to prevent counting a single pulse as multiple
@@ -156,10 +158,59 @@ void measureCurrent(float dt) {
   current = current*(1-alpha) + (analogRead(CURRENT_SENSE_PIN)-center)*k*alpha;
 }
 
+/** This function measures the force on the FC22 compression load cell. The load
+ * cell is already amplified with an output range of 0.5 to 4.5 V and a measurement
+ * range of 0-25 lb. 
+ * 
+ * The range of the sensor is 4.0 V and the offset is 0.5 V, so that the relationship 
+ * between voltage and force is:
+ * 
+ * F = 4.0/25*(V-0.5) = 0.16*(V-0.5)
+ * 
+ * The voltage can be calculated from:
+ * 
+ * V = ADC/1024*5.0 = ADC*0.004883
+ * 
+ * So the resulting relationship is:
+ * 
+ * F = 0.16*(0.004883*ADC-0.5)
+ * 
+ * In this measurement scenario, the sensor is preloaded with a tare weight that allows
+ * both positive and negative loads to be measured. This function only provides the 
+ * measured force without accounting for the tare weight. That must be recorded separately
+ * and subtracted from this measurement.
+ */
+void measureForce(float dt) {
+  const static float Kf = 0.16;
+  const static float Kadc = 0.004883;
+  const static float offset = 0.5;
+  
+  const static float tau = 0.1;
+  
+  float newThrust = Kf*(Kadc*analogRead(FORCE_SENSE_PIN)-offset);
+  
+  float alpha = dt/(dt+tau);
+  
+  thrust = thrust*(1-alpha) + newThrust*alpha;
+}
+
+/** This function sets the tare force to be subtracted from the measured force.
+ * It first reads the sensor for 1 second to ensure that the measurement is stable
+ * and the first order filter has time to settle. */
+void setTareForce() {
+  for ( uint8_t i = 0 ; i < 100 ; i++ ) {
+    measureForce(0.01);
+    delay(10);
+  }
+  
+  tareThrust = thrust;
+}
+
 void setup() {
   Serial.begin(115200);
   Plotuino::init(&Serial);
   initTachometer();
+  setTareForce();
 }
 
 void loop() {
@@ -180,9 +231,9 @@ void loop() {
   }
   
   /** Output loop. Output frequency can be adjusted. Currently, the output message
-   * is 2+1+1+4*4+2 = 22 bytes = 176 bits/message. Therefore, at 115200 bps, 
+   * is 2+1+1+6*4+2 = 30 bytes = 240 bits/message. Therefore, at 115200 bps, 
    * 
-   * 115200 bits/s x 1/176 messages/bit = 654 messages/s
+   * 115200 bits/s x 1/240 messages/bit = 480 messages/s
    * 
    * can be sent under ideal conditions. In practice, this number will be lower. */
   if ( float(micros()-outputTimer)/1000000l > 0.1 ) {
@@ -191,7 +242,7 @@ void loop() {
     Plotuino::send(voltage);
     Plotuino::send(current);
     Plotuino::send(voltage*current);
-    Plotuino::send(0.0f); // Thrust
+    Plotuino::send(thrust-tareThrust); // Thrust
     Plotuino::send(filteredRPM);
     Plotuino::send(filteredRPM/voltage);
     Plotuino::endTransfer();
