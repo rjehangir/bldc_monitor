@@ -14,19 +14,21 @@ stream_server = 'http://stream.plot.ly'
 
 p = plotly.plotly(username, api_key)
 
-#data = [{'x':[],'y':[], 'type': 'scatter', 'stream': {'token': stream_token, 'maxpoints': 100}},{'x':[1,2,3],'y':[4,5,6],'yaxis':'y2'}]
+numPoints = 1000
 
-trace0 = {'x':[1,2,3,4],'y':[2,3,4,5],'type': 'scatter', 'stream': {'token': stream_tokens[0], 'maxpoints': 100}}
-trace1 = {'x':[1,2,3,4],'y':[4,3,2,1],'yaxis':'y2','type': 'scatter', 'stream': {'token': stream_tokens[1], 'maxpoints': 100}}
-trace2 = {'x':[1,2,3,4],'y':[4,3,2,1],'yaxis':'y3','type': 'scatter', 'stream': {'token': stream_tokens[2], 'maxpoints': 100}}
-trace3 = {'x':[1,2,3,4],'y':[4,3,2,1],'yaxis':'y4','type': 'scatter', 'stream': {'token': stream_tokens[3], 'maxpoints': 100}}
+trace0 = {'x':[],'y':[],'type': 'scatter', 'stream': {'token': stream_tokens[0], 'maxpoints': numPoints}}
+trace1 = {'x':[],'y':[],'yaxis':'y2','type': 'scatter', 'stream': {'token': stream_tokens[1], 'maxpoints': numPoints}}
+trace2 = {'x':[],'y':[],'yaxis':'y3','type': 'scatter', 'stream': {'token': stream_tokens[2], 'maxpoints': numPoints}}
+trace3 = {'x':[],'y':[],'yaxis':'y4','type': 'scatter', 'stream': {'token': stream_tokens[3], 'maxpoints': numPoints}}
 
 xAxisStyle = {'title':'Time'}
 
 domainHeight = 0.22
 domainGap = (1.0-4*domainHeight)/3.0
 
-layout1 = {'xaxis':xAxisStyle,
+layout1 = { 'title':'Thruster-100 Live Test Data',
+	    'showlegend': False,
+	    'xaxis':xAxisStyle,
 	    'yaxis':{'domain':[0,domainHeight],'title':'Voltage (V)'},
 	    'yaxis2':{'domain':[domainHeight+domainGap,2*domainHeight+domainGap],'title':'Power (W)'},
 	    'yaxis3':{'domain':[2*domainHeight+2*domainGap,3*domainHeight+2*domainGap],'title':'RPM'},
@@ -39,15 +41,16 @@ s1 = plotly.stream(stream_tokens[1])
 s2 = plotly.stream(stream_tokens[2])
 s3 = plotly.stream(stream_tokens[3])
 
-s0.write({'x':0.5,'y':0.5})
-s1.write({'x':0.5,'y':0.5})
-s2.write({'x':0.5,'y':0.5})
-s3.write({'x':0.5,'y':0.5})
+timeStamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+s0.write({'x':timeStamp,'y':0.5})
+s1.write({'x':timeStamp,'y':0.5})
+s2.write({'x':timeStamp,'y':0.5})
+s3.write({'x':timeStamp,'y':0.5})
 
 i = 0
 while True:
 	timeStamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-	timeStamp = i
+	#timeStamp = i
 	trace0 = {'x': timeStamp, 'y': cos(5*i/50.)*cos(i/50.)}
 	trace1 = {'x': timeStamp, 'y': cos(5*i/50.)*cos(i/50.)}
 	trace2 = {'x': timeStamp, 'y': -cos(5*i/50.)*cos(i/50.)}
