@@ -9,7 +9,7 @@
 
 #define NUMBER_OF_MOTOR_POLES 12
 
-#define DISTANCE_FROM_PROPELLER_AXIS_TO_PIVOT (10.0f)
+#define DISTANCE_FROM_PROPELLER_AXIS_TO_PIVOT (12.0f)
 #define DISTANCE_FROM_LOAD_CELL_AXIS_TO_PIVOT (12.0f)
 
 #define FORCE_RATIO (DISTANCE_FROM_LOAD_CELL_AXIS_TO_PIVOT/DISTANCE_FROM_PROPELLER_AXIS_TO_PIVOT)
@@ -33,7 +33,7 @@ float tareThrust = 0;
  */
 ISR(INT1_vect) {
   // Pulses are between 480 us and 200 us (at 1.67 kHz)
-  if ( micros()-lastPulseTimer > 500 ) {
+  if ( micros()-lastPulseTimer > 200 ) {
     pulseCount++;
     lastPulseTimer = micros();
   }
@@ -57,7 +57,7 @@ static __inline__ void checkForZeroPulses() {
     safePulseTimer = pulseTimer;
   }
   
-  if ( micros()-safePulseTimer > 100000l ) {
+  if ( micros()-safePulseTimer > 300000l ) {
     rps = 0;
   }
 }
@@ -87,7 +87,7 @@ void filterRPM(float dt) {
 
   float alpha = dt/(dt+tau);
   
-  filteredRPM = filteredRPM*(1-alpha) + rps*60/NUMBER_OF_MOTOR_POLES*alpha;
+  filteredRPM = filteredRPM*(1-alpha) + rps*60/NUMBER_OF_MOTOR_POLES*2*alpha;
 }
 
 /** This function measures the voltage of the power source with the ADC. The
@@ -253,16 +253,27 @@ void loop() {
   if ( float(micros()-outputTimer)/1000000l > 0.1 ) {
     outputTimer = micros();
     Plotuino::beginTransfer(0x01);
-    /*Plotuino::send(voltage);
-    Plotuino::send(current);
-    Plotuino::send(voltage*current);
-    Plotuino::send(getThrust()); // Thrust
-    Plotuino::send(filteredRPM);
-    Plotuino::send(filteredRPM/voltage);*/
-    Plotuino::send(getThrust());
-    Plotuino::send(filteredRPM);
-    Plotuino::send(voltage*current);
+//     /*Plotuino::send(voltage);
+//     Plotuino::send(current);
+//     Plotuino::send(voltage*current);
+//     Plotuino::send(getThrust()); // Thrust
+//     Plotuino::send(filteredRPM);
+//     Plotuino::send(filteredRPM/voltage);*/
+    
     Plotuino::send(voltage);
+    Plotuino::send(voltage*current);
+    Plotuino::send(filteredRPM);
+    Plotuino::send(getThrust());
+    
     Plotuino::endTransfer();
+    
+//     Serial.print(voltage);
+//     Serial.print(" ");
+//     Serial.print(current);
+//     Serial.print(" ");
+//     Serial.print(voltage*current);
+//     Serial.println(" ");
   }
+
+
 }

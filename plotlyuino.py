@@ -102,11 +102,11 @@ class PlotlyPlotter:
 		self.s2 = plotly.stream(stream_tokens[2])
 		self.s3 = plotly.stream(stream_tokens[3])
 
-		timeStamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-		self.s0.write({'x':timeStamp,'y':0.5})
-		self.s1.write({'x':timeStamp,'y':0.5})
-		self.s2.write({'x':timeStamp,'y':0.5})
-		self.s3.write({'x':timeStamp,'y':0.5})
+		#timeStamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+		#self.s0.write({'x':timeStamp,'y':0.5})
+		#self.s1.write({'x':timeStamp,'y':0.5})
+		#self.s2.write({'x':timeStamp,'y':0.5})
+		#self.s3.write({'x':timeStamp,'y':0.5})
 	
 	def streamToPlotly(self,data):
 		timeStamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
@@ -141,10 +141,11 @@ def update():
 	else:
 		values = sercon.readMessageFake()
 	if values is not None:
+		print values
 		plotter.streamToPlotly(values)
 			
 if __name__ == '__main__':
 	while True:
 		update();
-		time.sleep(0.1)
+		time.sleep(0.05)
 
