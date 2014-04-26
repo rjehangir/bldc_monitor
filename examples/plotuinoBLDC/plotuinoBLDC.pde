@@ -170,7 +170,7 @@ void measureCurrent(float dt) {
  * The range of the sensor is 4.0 V and the offset is 0.5 V, so that the relationship 
  * between voltage and force is:
  * 
- * F = 4.0/25*(V-0.5) = 0.16*(V-0.5)
+ * F = 25.0/4.0*(V-0.5) = 6.25*(V-0.5)
  * 
  * The voltage can be calculated from:
  * 
@@ -178,7 +178,7 @@ void measureCurrent(float dt) {
  * 
  * So the resulting relationship is:
  * 
- * F = 0.16*(0.004883*ADC-0.5)
+ * F = 6.25*(0.004883*ADC-0.5)
  * 
  * In this measurement scenario, the sensor is preloaded with a tare weight that allows
  * both positive and negative loads to be measured. This function only provides the 
@@ -186,7 +186,7 @@ void measureCurrent(float dt) {
  * and subtracted from this measurement.
  */
 void measureForce(float dt) {
-  const static float Kf = 0.16;
+  const static float Kf = 6.25;
   const static float Kadc = 0.004883;
   const static float offset = 0.5;
   
@@ -203,6 +203,8 @@ void measureForce(float dt) {
  * It first reads the sensor for 1 second to ensure that the measurement is stable
  * and the first order filter has time to settle. */
 void setTareForce() {
+  measureForce(100000.0f); // Large dt so that the filter is ignored
+  
   for ( uint8_t i = 0 ; i < 100 ; i++ ) {
     measureForce(0.01);
     delay(10);
@@ -237,6 +239,7 @@ void loop() {
   if ( dt > 0.005 ) {
     measureVoltage(dt);
     measureCurrent(dt);
+    measureForce(dt);
     checkForZeroPulses();
     filterRPM(dt);
   }
