@@ -8,12 +8,12 @@ with open('./config.json') as config_file:
 
 username = plotly_user_config['plotly_username']
 api_key = plotly_user_config['plotly_api_key']
-stream_token = plotly_user_config['plotly_streaming_token']
+stream_token = plotly_user_config['plotly_streaming_tokens'][0]
 stream_server = 'http://stream.plot.ly'
 
 p = plotly.plotly(username, api_key)
 
-r = p.plot([{'x':[], 'y':[], 'type': 'scatter', 'stream': {'token': stream_token, 'maxpoints': 100}}], layout={'xaxis':{'range':[-1,1]}, 'yaxis': {'range': [-1,1]}}, filename='Stream Example', fileopt='overwrite')
+r = p.iplot([{'x':[], 'y':[], 'type': 'scatter', 'stream': {'token': stream_token, 'maxpoints': 100}}], layout={'xaxis':{'range':[-1,1]}, 'yaxis': {'range': [-1,1]}}, filename='Stream Example', fileopt='overwrite')
 
 s = plotly.stream(stream_token)
 

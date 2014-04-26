@@ -253,12 +253,16 @@ void loop() {
   if ( float(micros()-outputTimer)/1000000l > 0.1 ) {
     outputTimer = micros();
     Plotuino::beginTransfer(0x01);
-    Plotuino::send(voltage);
+    /*Plotuino::send(voltage);
     Plotuino::send(current);
     Plotuino::send(voltage*current);
     Plotuino::send(getThrust()); // Thrust
     Plotuino::send(filteredRPM);
-    Plotuino::send(filteredRPM/voltage);
+    Plotuino::send(filteredRPM/voltage);*/
+    Plotuino::send(getThrust());
+    Plotuino::send(filteredRPM);
+    Plotuino::send(voltage*current);
+    Plotuino::send(voltage);
     Plotuino::endTransfer();
   }
 }

@@ -1,13 +1,11 @@
 #!/usr/bin/python 
 
-from pyqtgraph.Qt import QtGui, QtCore
 import numpy as np
-import pyqtgraph as pg
 import serial
 import crcmod
 import struct
 import time
-
+import datetime
 import plotly
 import json
 
@@ -64,6 +62,62 @@ class SerialConnection:
 
 		return values
 
+class PlotlyPlotter:
+	def initPlotly(self):
+		with open('./config.json') as config_file:
+			plotly_user_config = json.load(config_file)
+
+		username = plotly_user_config['plotly_username']
+		api_key = plotly_user_config['plotly_api_key']
+		stream_tokens = plotly_user_config['plotly_streaming_tokens']
+		stream_server = 'http://stream.plot.ly'
+
+		self.p = plotly.plotly(username, api_key)
+
+		numPoints = 1000
+
+		trace0 = {'x':[],'y':[],'type': 'scatter', 'stream': {'token': stream_tokens[0], 'maxpoints': numPoints}}
+		trace1 = {'x':[],'y':[],'yaxis':'y2','type': 'scatter', 'stream': {'token': stream_tokens[1], 'maxpoints': numPoints}}
+		trace2 = {'x':[],'y':[],'yaxis':'y3','type': 'scatter', 'stream': {'token': stream_tokens[2], 'maxpoints': numPoints}}
+		trace3 = {'x':[],'y':[],'yaxis':'y4','type': 'scatter', 'stream': {'token': stream_tokens[3], 'maxpoints': numPoints}}
+
+		xAxisStyle = {'title':'Time'}
+
+		domainHeight = 0.22
+		domainGap = (1.0-4*domainHeight)/3.0
+
+		layout1 = { 'title':'Thruster-100 Live Test Data',
+			    'showlegend': False,
+			    'xaxis':xAxisStyle,
+			    'yaxis':{'domain':[0,domainHeight],'title':'Voltage (V)'},
+			    'yaxis2':{'domain':[domainHeight+domainGap,2*domainHeight+domainGap],'title':'Power (W)'},
+			    'yaxis3':{'domain':[2*domainHeight+2*domainGap,3*domainHeight+2*domainGap],'title':'RPM'},
+			    'yaxis4':{'domain':[3*domainHeight+3*domainGap,4*domainHeight+3*domainGap],'title':'Thrust (lb)'}}
+
+		r = self.p.iplot([trace0, trace1, trace2, trace3],layout=layout1,filename='Thruster-Stream',fileopt='overwrite')
+		print r
+
+		self.s0 = plotly.stream(stream_tokens[0])
+		self.s1 = plotly.stream(stream_tokens[1])
+		self.s2 = plotly.stream(stream_tokens[2])
+		self.s3 = plotly.stream(stream_tokens[3])
+
+		timeStamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+		self.s0.write({'x':timeStamp,'y':0.5})
+		self.s1.write({'x':timeStamp,'y':0.5})
+		self.s2.write({'x':timeStamp,'y':0.5})
+		self.s3.write({'x':timeStamp,'y':0.5})
+	
+	def streamToPlotly(self,data):
+		timeStamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+		trace0 = {'x': timeStamp, 'y': data[0]}
+		trace1 = {'x': timeStamp, 'y': data[1]}
+		trace2 = {'x': timeStamp, 'y': data[2]}
+		trace3 = {'x': timeStamp, 'y': data[3]}
+		self.s0.write(trace0)
+		self.s1.write(trace1)
+		self.s2.write(trace2)
+		self.s3.write(trace3)
 
 #######################################
 
@@ -77,38 +131,20 @@ except:
 	connected = False
 	print "Error connecting to serial port. Defaulting to random data."
 
-with open('./config.json') as config_file:
-	plotly_user_config = json.load(config_file)
+plotter = PlotlyPlotter()
 
-username = plotly_user_config['plotly_username']
-api_key = plotly_user_config['plotly_api_key']
-stream_tokens = plotly_user_config['plotly_streaming_tokens']
-stream_server = 'http://stream.plot.ly'
+plotter.initPlotly()
 
-p = plotly.plotly(username, api_key)
-
-data = [{'x':[],'y':[],'type': 'scatter', 'stream': {'token': stream_tokens[0], 'maxpoints': 1000}}]
-
-plotLayout = {'xaxis':{'range':[-1,1]}, 'yaxis': {'range': [-1,1]}}
-
-r = p.plot(data, plotLayout, filename='Stream Example', fileopt='overwrite')
-
-s = plotly.stream(stream_tokens)
-
-s.write({'x':0.5,'y':0.5})
-
-def update(pstream):
+def update():
 	if connected:
 		values = sercon.readMessage()
 	else:
 		values = sercon.readMessageFake()
 	if values is not None:
-		ts = time.time()
-		data = {'x':1,'y':values[0]}
-		print data
-		pstream.write(data)
+		plotter.streamToPlotly(values)
 			
 if __name__ == '__main__':
 	while True:
-		update(s);
+		update();
 		time.sleep(0.1)
+
