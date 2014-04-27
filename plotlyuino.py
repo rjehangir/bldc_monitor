@@ -8,10 +8,11 @@ import time
 import datetime
 import plotly
 import json
+import sys
 
 class SerialConnection:
 	def openConnection(self,port,baudrate):
-		self.ser = serial.Serial(port,baudrate,timeout=0.25)
+		self.ser = serial.Serial(port,baudrate,timeout=0.25,writeTimeout=0)
 		time.sleep(1.0)
 		if self.ser.isOpen():
 			print "Serial port opened."
@@ -50,7 +51,7 @@ class SerialConnection:
 		calcChecksum = (~calcChecksum) % 2**16  # convert to uint16_t
 
 		if ( checksum != calcChecksum ):
-			print "Failed checksum."
+			#print "Failed checksum."
 			return
 		      
 		#Break data into useful parts
@@ -135,17 +136,73 @@ plotter = PlotlyPlotter()
 
 plotter.initPlotly()
 
+import curses
+stdscr = curses.initscr()
+curses.cbreak()
+stdscr.keypad(1)
+stdscr.nodelay(1)
+
+stdscr.addstr(0,0,"Use up/down or page up/down to adjust motor speed from 0-255. Press 'q' to quit.")
+stdscr.addstr(1,0,"Hit SPACE to stop motor.")
+stdscr.refresh()
+
+command = 0
+
+def getMotorFromTerminal():
+	global command
+	
+	key = stdscr.getch()
+	
+	if key == curses.KEY_UP:
+		  command += 1
+		  if command > 255:
+			  command = 255
+	elif key == curses.KEY_DOWN:
+		  command -= 1
+		  if command < 0:
+			  command = 0
+	elif key == curses.KEY_PPAGE:
+		  command += 10
+		  if command > 255:
+			  command = 255
+	elif key == curses.KEY_NPAGE:
+		  command -= 10
+		  if command < 0:
+			  command = 0
+	elif key == ord(' '):
+		  command = 0
+	elif key == ord('q'):
+		  command = 0
+		  sercon.ser.write(chr(command))
+		  curses.endwin()
+		  exit()
+		  
+	stdscr.addstr(3,5,"Motor command: "+str(command)+"     ")
+
 def update():
 	if connected:
 		values = sercon.readMessage()
 	else:
 		values = sercon.readMessageFake()
 	if values is not None:
-		print values
+		#print values
 		plotter.streamToPlotly(values)
+		stdscr.addstr(5,5,"Raw values: "+str(values))
 			
 if __name__ == '__main__':
+	lastCommandUpdate = time.time()
+	lastCommand = 0
+	
+	lastSerialRead = time.time()
 	while True:
-		update();
-		time.sleep(0.05)
+		if time.time() - lastSerialRead > 0.05:
+			update()
+			lastSerialRead = time.time()
+			
+		getMotorFromTerminal()
+		
+		if time.time() - lastCommandUpdate > 0.1 and command is not lastCommand:
+			sercon.ser.write(chr(command))
+			lastCommand = command
+			lastCommandUpdate = time.time()
 

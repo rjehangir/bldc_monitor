@@ -6,6 +6,8 @@
 #define CURRENT_SENSE_PIN A1
 #define FORCE_SENSE_PIN A2
 #define TACHOMETER_INT_PIN 3
+#define SERVO1 9
+#define SERVO2 10
 
 #define NUMBER_OF_MOTOR_POLES 12
 
@@ -70,6 +72,8 @@ void initTachometer() {
   // Initialize input/output pins
   //pinMode(PWM_PIN,OUTPUT);
   pinMode(TACHOMETER_INT_PIN,INPUT);
+  pinMode(SERVO1,OUTPUT);
+  pinMode(SERVO2,OUTPUT);
   
   // Initialize PWM output for 50 Hz (Digital pin 9)
   TCCR1A = (1<<WGM11)|(1<<COM1A1)|(1<<COM1B1);
@@ -83,7 +87,7 @@ void initTachometer() {
 
 /** This function filters the RPM with a low-pass filter. */
 void filterRPM(float dt) {
-  const static float tau = 0.1;
+  const static float tau = 0.25;
 
   float alpha = dt/(dt+tau);
   
@@ -121,7 +125,7 @@ void filterRPM(float dt) {
  */
 void measureVoltage(float dt) {
   const static float k = 0.01527;
-  const static float tau = 0.1;
+  const static float tau = 0.5;
   
   static bool initialized = false;
   if ( !initialized ) {
@@ -149,7 +153,7 @@ void measureVoltage(float dt) {
  */
 void measureCurrent(float dt) {
   const static float k = 0.05883;
-  const static float tau = 0.1;
+  const static float tau = 0.5;
   const static int16_t center = 520;
   
   static bool initialized = false;
@@ -190,7 +194,7 @@ void measureForce(float dt) {
   const static float Kadc = 0.004883;
   const static float offset = 0.5;
   
-  const static float tau = 0.1;
+  const static float tau = 0.25;
   
   float newThrust = Kf*(Kadc*analogRead(FORCE_SENSE_PIN)-offset);
   
@@ -219,11 +223,19 @@ float getThrust() {
   return (thrust-tareThrust)*FORCE_RATIO;
 }
 
+/** Outputs a PWM signal to control the motor controller. Outputs to digital pins 9 and 10. */
+void outputPWM(uint16_t _pwm) {
+  OCR1A = _pwm*2;
+  OCR1B = _pwm*2;
+}
+
 void setup() {
   Serial.begin(115200);
   Plotuino::init(&Serial);
   initTachometer();
   setTareForce();
+  
+  outputPWM(1200);
 }
 
 void loop() {
@@ -274,6 +286,11 @@ void loop() {
 //     Serial.print(voltage*current);
 //     Serial.println(" ");
   }
-
+  
+  /** Serial input to control motor speed */
+  if ( Serial.available() > 0 ) {
+    uint8_t input = Serial.read();
+    outputPWM(map(input,0,256,1200,2000));
+  }
 
 }
