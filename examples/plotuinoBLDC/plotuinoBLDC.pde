@@ -125,7 +125,7 @@ void filterRPM(float dt) {
  */
 void measureVoltage(float dt) {
   const static float k = 0.01527;
-  const static float tau = 0.5;
+  const static float tau = 0.25;
   
   static bool initialized = false;
   if ( !initialized ) {
@@ -153,7 +153,7 @@ void measureVoltage(float dt) {
  */
 void measureCurrent(float dt) {
   const static float k = 0.05883;
-  const static float tau = 0.5;
+  const static float tau = 0.25;
   const static int16_t center = 520;
   
   static bool initialized = false;
@@ -192,9 +192,9 @@ void measureCurrent(float dt) {
 void measureForce(float dt) {
   const static float Kf = 6.25;
   const static float Kadc = 0.004883;
-  const static float offset = 0.5;
+  const static float offset = 0.25;
   
-  const static float tau = 0.25;
+  const static float tau = 0.1;
   
   float newThrust = Kf*(Kadc*analogRead(FORCE_SENSE_PIN)-offset);
   
@@ -254,6 +254,7 @@ void loop() {
     measureForce(dt);
     checkForZeroPulses();
     filterRPM(dt);
+    measurementTimer = micros();
   }
   
   /** Output loop. Output frequency can be adjusted. Currently, the output message
@@ -273,7 +274,7 @@ void loop() {
 //     Plotuino::send(filteredRPM/voltage);*/
     
     Plotuino::send(voltage);
-    Plotuino::send(voltage*current);
+    Plotuino::send(current*voltage);
     Plotuino::send(filteredRPM);
     Plotuino::send(getThrust());
     
