@@ -201,7 +201,7 @@ if __name__ == '__main__':
 			
 		getMotorFromTerminal()
 		
-		if time.time() - lastCommandUpdate > 0.1 and command is not lastCommand:
+		if time.time() - lastCommandUpdate > 0.1 and command is not lastCommand and connected:
 			sercon.ser.write(chr(command))
 			lastCommand = command
 			lastCommandUpdate = time.time()
