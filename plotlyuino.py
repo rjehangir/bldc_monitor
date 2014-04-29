@@ -142,8 +142,11 @@ curses.cbreak()
 stdscr.keypad(1)
 stdscr.nodelay(1)
 
-stdscr.addstr(0,0,"Use up/down or page up/down to adjust motor speed from 0-255. Press 'q' to quit.")
-stdscr.addstr(1,0,"Hit SPACE to stop motor.")
+stdscr.addstr(0,0,"Plotlyuino Thrust Test Stand")
+stdscr.addstr(1,0,"============================")
+stdscr.addstr(3,0,"Adjust motor:\tUp/down, pgup/pgdown, scroll wheel")
+stdscr.addstr(4,0,"Stop motor: \tSPACE")
+stdscr.addstr(5,0,"Quit: \t\tq")
 stdscr.refresh()
 
 command = 0
@@ -173,11 +176,12 @@ def getMotorFromTerminal():
 		  command = 0
 	elif key == ord('q'):
 		  command = 0
-		  sercon.ser.write(chr(command))
+		  if connected:
+			sercon.ser.write(chr(command))
 		  curses.endwin()
 		  exit()
 		  
-	stdscr.addstr(3,5,"Motor command: "+str(command)+"     ")
+	stdscr.addstr(8,5,"Motor command: "+str(command)+"     ")
 
 def update():
 	if connected:
@@ -187,7 +191,11 @@ def update():
 	if values is not None:
 		#print values
 		plotter.streamToPlotly(values)
-		stdscr.addstr(5,5,"Raw values: "+str(values))
+		stdscr.addstr(10,5,"Thrust:\t%10.2f lb\t%10.0f g"%(values[3],values[3]*453.6))
+		stdscr.addstr(11,5,"RPM:\t%10.2f rev/min"%(values[2]))
+		stdscr.addstr(12,5,"Power:\t%10.2f W"%(values[1]))
+		stdscr.addstr(13,5,"Voltage:\t%10.2f V"%(values[0]))
+
 			
 if __name__ == '__main__':
 	lastCommandUpdate = time.time()
@@ -195,7 +203,7 @@ if __name__ == '__main__':
 	
 	lastSerialRead = time.time()
 	while True:
-		if time.time() - lastSerialRead > 0.05:
+		if time.time() - lastSerialRead > 0.18:
 			update()
 			lastSerialRead = time.time()
 			
