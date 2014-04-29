@@ -199,8 +199,8 @@ def update():
 		streamCount += 1
 		plotter.streamToPlotly(values)
 		stdscr.addstr(10,5,"Thrust:\t%10.2f lb\t%10.0f g"%(values[3],values[3]*453.6))
-		stdscr.addstr(11,5,"RPM:\t%10.2f rev/min"%(values[2]))
-		stdscr.addstr(12,5,"Power:\t%10.2f W"%(values[1]))
+		stdscr.addstr(11,5,"RPM:\t%10.0f rev/min"%(values[2]))
+		stdscr.addstr(12,5,"Power:\t%10.0f W"%(values[1]))
 		stdscr.addstr(13,5,"Voltage:\t%10.2f V"%(values[0]))
 		stdscr.addstr(16,0,"Plotly Stream Data Points Sent: %10.0f"%(streamCount))
 
