@@ -147,9 +147,14 @@ stdscr.addstr(1,0,"============================")
 stdscr.addstr(3,0,"Adjust motor:\tUp/down, pgup/pgdown, scroll wheel")
 stdscr.addstr(4,0,"Stop motor: \tSPACE")
 stdscr.addstr(5,0,"Quit: \t\tq")
+if connected:
+	stdscr.addstr(15,0,"Live serial data.")
+else:
+	stdscr.addstr(15,0,"Simulated data.")
 stdscr.refresh()
 
 command = 0
+streamCount = 0
 
 def getMotorFromTerminal():
 	global command
@@ -190,11 +195,14 @@ def update():
 		values = sercon.readMessageFake()
 	if values is not None:
 		#print values
+		global streamCount
+		streamCount += 1
 		plotter.streamToPlotly(values)
 		stdscr.addstr(10,5,"Thrust:\t%10.2f lb\t%10.0f g"%(values[3],values[3]*453.6))
 		stdscr.addstr(11,5,"RPM:\t%10.2f rev/min"%(values[2]))
 		stdscr.addstr(12,5,"Power:\t%10.2f W"%(values[1]))
 		stdscr.addstr(13,5,"Voltage:\t%10.2f V"%(values[0]))
+		stdscr.addstr(16,0,"Plotly Stream Data Points Sent: %10.0f"%(streamCount))
 
 			
 if __name__ == '__main__':
