@@ -155,6 +155,7 @@ stdscr.refresh()
 
 command = 0
 streamCount = 0
+values = []
 
 def getMotorFromTerminal():
 	global command
@@ -188,13 +189,16 @@ def getMotorFromTerminal():
 		  
 	stdscr.addstr(8,5,"Motor command: "+str(command)+"     ")
 
-def update():
+def readSerial():
+	global values
 	if connected:
 		values = sercon.readMessage()
 	else:
 		values = sercon.readMessageFake()
+
+def updatePlotly():
+	global values
 	if values is not None:
-		#print values
 		global streamCount
 		streamCount += 1
 		plotter.streamToPlotly(values)
@@ -210,11 +214,16 @@ if __name__ == '__main__':
 	lastCommand = 0
 	
 	lastSerialRead = time.time()
+	lastPlotlyUpdate = time.time()
 	while True:
-		if time.time() - lastSerialRead > 0.18:
-			update()
+		if time.time() - lastSerialRead > 0.05:
+			readSerial()
 			lastSerialRead = time.time()
 			
+		if time.time() - lastPlotlyUpdate > 0.10:
+			updatePlotly()
+			lastPlotlyUpdate = time.time()
+
 		getMotorFromTerminal()
 		
 		if time.time() - lastCommandUpdate > 0.1 and command is not lastCommand and connected:
