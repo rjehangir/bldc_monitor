@@ -75,7 +75,7 @@ class PlotlyPlotter:
 
 		self.p = plotly.plotly(username, api_key)
 
-		numPoints = 1000
+		numPoints = 450
 
 		trace0 = {'x':[],'y':[],'type': 'scatter', 'stream': {'token': stream_tokens[0], 'maxpoints': numPoints}}
 		trace1 = {'x':[],'y':[],'yaxis':'y2','type': 'scatter', 'stream': {'token': stream_tokens[1], 'maxpoints': numPoints}}
