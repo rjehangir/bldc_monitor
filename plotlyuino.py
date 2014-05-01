@@ -213,16 +213,21 @@ def updatePlotly():
 if __name__ == '__main__':
 	lastCommandUpdate = time.time()
 	lastCommand = 0
-	
 	lastSerialRead = time.time()
 	lastPlotlyUpdate = time.time()
+	errorCount = 0
 	while True:
 		if time.time() - lastSerialRead > 0.05:
 			readSerial()
 			lastSerialRead = time.time()
 			
 		if time.time() - lastPlotlyUpdate > 0.10:
-			updatePlotly()
+			try:
+				updatePlotly()
+			except IOError:
+				errorCount += 1
+				time.sleep(5)
+			stdscr.addstr(18,0,"Number of IOErrors: %6.0f"%(errorCount))
 			lastPlotlyUpdate = time.time()
 
 		getMotorFromTerminal()
