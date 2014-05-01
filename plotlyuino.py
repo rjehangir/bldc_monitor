@@ -185,6 +185,7 @@ def getMotorFromTerminal():
 		  if connected:
 			sercon.ser.write(chr(command))
 		  curses.endwin()
+		  sercon.ser.close()
 		  exit()
 		  
 	stdscr.addstr(8,5,"Motor command: "+str(command)+"     ")
