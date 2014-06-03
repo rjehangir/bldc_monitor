@@ -6,7 +6,7 @@ import crcmod
 import struct
 import time
 import datetime
-import plotly
+import plotly.plotly as py
 import json
 import sys
 
@@ -73,7 +73,7 @@ class PlotlyPlotter:
 		stream_tokens = plotly_user_config['plotly_streaming_tokens']
 		stream_server = 'http://stream.plot.ly'
 
-		self.p = plotly.plotly(username, api_key)
+		py.sign_in(username, api_key)
 
 		numPoints = 450
 
@@ -95,19 +95,24 @@ class PlotlyPlotter:
 			    'yaxis3':{'domain':[2*domainHeight+2*domainGap,3*domainHeight+2*domainGap],'title':'RPM'},
 			    'yaxis4':{'domain':[3*domainHeight+3*domainGap,4*domainHeight+3*domainGap],'title':'Thrust (lb)'}}
 
-		r = self.p.iplot([trace0, trace1, trace2, trace3],layout=layout1,filename='Thruster-Stream',fileopt='overwrite')
+		r = py.iplot({'data':[trace0, trace1, trace2, trace3],'layout':layout1},filename='Thruster-Stream',fileopt='overwrite')
 		print r
 
-		self.s0 = plotly.stream(stream_tokens[0])
-		self.s1 = plotly.stream(stream_tokens[1])
-		self.s2 = plotly.stream(stream_tokens[2])
-		self.s3 = plotly.stream(stream_tokens[3])
-
-		#timeStamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-		#self.s0.write({'x':timeStamp,'y':0.5})
-		#self.s1.write({'x':timeStamp,'y':0.5})
-		#self.s2.write({'x':timeStamp,'y':0.5})
-		#self.s3.write({'x':timeStamp,'y':0.5})
+		self.s0 = py.Stream(stream_tokens[0])
+		self.s1 = py.Stream(stream_tokens[1])
+		self.s2 = py.Stream(stream_tokens[2])
+		self.s3 = py.Stream(stream_tokens[3])
+		
+		self.s0.open()
+		self.s1.open()
+		self.s2.open()
+		self.s3.open()
+		
+	def closePlotly(self):
+		self.s0.close()
+		self.s1.close()
+		self.s2.close()
+		self.s3.close()
 	
 	def streamToPlotly(self,data):
 		timeStamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
@@ -160,7 +165,7 @@ values = []
 def getMotorFromTerminal():
 	global command
 	
-	key = stdscr.getch()
+ 	key = stdscr.getch()
 	
 	if key == curses.KEY_UP:
 		  command += 1
@@ -184,6 +189,7 @@ def getMotorFromTerminal():
 		  command = 0
 		  if connected:
 			sercon.ser.write(chr(command))
+		  plotter.closePlotly()
 		  curses.endwin()
 		  sercon.ser.close()
 		  exit()
