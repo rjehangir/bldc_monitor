@@ -124,8 +124,29 @@ class PlotlyPlotter:
 		self.s1.write(trace1)
 		self.s2.write(trace2)
 		self.s3.write(trace3)
+		
+class CumulativeTimeMeter:
+		def init(self):
+				self.startTime = time.time()
+				self.fileName = 'hourmeter.log'
+				with open(self.fileName,'r') as f:
+						oldRecord = json.load(f)
+				self.oldTime = oldRecord['cumulativeTime']
+				
+		def getCumulativeTime(self):
+				return (time.time()-self.startTime)+self.oldTime		
+				
+		def recordCumulativeTime(self):
+				record = {'cumulativeTime':self.getCumulativeTime()}
+				with open(self.fileName,'w') as f:
+						json.dump(record,f)
+				
 
 #######################################
+
+meter = CumulativeTimeMeter()
+
+meter.init()
 
 sercon = SerialConnection()
 
@@ -214,6 +235,10 @@ def updatePlotly():
 		stdscr.addstr(12,5,"Power:\t%10.0f W"%(values[1]))
 		stdscr.addstr(13,5,"Voltage:\t%10.2f V"%(values[0]))
 		stdscr.addstr(16,0,"Plotly Stream Data Points Sent: %10.0f"%(streamCount))
+		
+def updateHourMeter():
+	stdscr.addstr(20,0,"Cumulative Running Time: %s"%(str(datetime.timedelta(seconds=meter.getCumulativeTime()))))
+	meter.recordCumulativeTime()
 
 			
 if __name__ == '__main__':
@@ -221,13 +246,14 @@ if __name__ == '__main__':
 	lastCommand = 0
 	lastSerialRead = time.time()
 	lastPlotlyUpdate = time.time()
+	lastMeterRecord = time.time()
 	errorCount = 0
 	while True:
 		if time.time() - lastSerialRead > 0.05:
 			readSerial()
 			lastSerialRead = time.time()
 			
-		if time.time() - lastPlotlyUpdate > 0.10:
+		if time.time() - lastPlotlyUpdate > 0.20:
 			try:
 				updatePlotly()
 			except IOError:
@@ -235,6 +261,10 @@ if __name__ == '__main__':
 				time.sleep(5)
 			stdscr.addstr(18,0,"Number of IOErrors: %6.0f"%(errorCount))
 			lastPlotlyUpdate = time.time()
+			
+		if time.time() - lastMeterRecord > 0.5:
+			updateHourMeter()
+			lastMeterRecord = time.time()
 
 		getMotorFromTerminal()
 		
