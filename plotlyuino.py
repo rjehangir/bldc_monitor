@@ -132,18 +132,18 @@ class CumulativeTimeMeter:
 				with open(self.fileName,'r') as f:
 						oldRecord = json.load(f)
 				self.oldTime = oldRecord['cumulativeTime']
-				self.oldRPMTime = oldRecord['cumulativeRPMxTime']
+				self.oldRPSTime = oldRecord['cumulativeRPSxTime']
 				self.oldThrustTime = oldRecord['cumulativeThrustxTime']
 				self.time = 0
-				self.rpmTime = 0
+				self.rpsTime = 0
 				self.thrustTime = 0
 				self.lastTime = time.time()
 				
 		def getCumulativeTime(self):
 				return self.time+self.oldTime
 				
-		def getCumulativeRPMxTime(self):
-				return self.rpmTime + self.oldRPMTime
+		def getCumulativeRPSxTime(self):
+				return self.rpsTime + self.oldRPSTime
 				
 		def getCumulativeThrustxTime(self):
 				return self.thrustTime + self.oldThrustTime		
@@ -154,11 +154,11 @@ class CumulativeTimeMeter:
 				
 				if isMetering:
 						self.time += delta
-						self.rpmTime += delta*rpm
+						self.rpsTime += delta*rpm/60.0
 						self.thrustTime += delta*thrust
 				
 		def recordCumulativeTime(self):
-				record = {'cumulativeTime':self.getCumulativeTime(),'cumulativeRPMxTime':self.getCumulativeRPMxTime(),'cumulativeThrustxTime':self.getCumulativeThrustxTime()}
+				record = {'cumulativeTime':self.getCumulativeTime(),'cumulativeRPSxTime':self.getCumulativeRPSxTime(),'cumulativeThrustxTime':self.getCumulativeThrustxTime()}
 				with open(self.fileName,'w') as f:
 						json.dump(record,f)
 				
@@ -260,11 +260,11 @@ def updatePlotly():
 def updateHourMeter():
 	global values
 	isMetering = False
-	if values[2] > 0:
+	if values[2] > 60:
 		isMetering = True
 	meter.meterTime(isMetering,values[2],values[3])
 	stdscr.addstr(20,0,"Cumulative Running Time:\t%s"%(str(datetime.timedelta(seconds=meter.getCumulativeTime()))))
-	stdscr.addstr(21,0,"Cumulative Revolutions:\t\t%g"%(meter.getCumulativeRPMxTime()/(meter.getCumulativeTime()+0.001)))
+	stdscr.addstr(21,0,"Cumulative Revolutions:\t\t%g"%(meter.getCumulativeRPSxTime()))
 	stdscr.addstr(22,0,"Average Thrust:\t\t\t%g"%(meter.getCumulativeThrustxTime()/(meter.getCumulativeTime()+0.001)))
 	meter.recordCumulativeTime()
 
