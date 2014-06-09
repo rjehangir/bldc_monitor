@@ -132,12 +132,33 @@ class CumulativeTimeMeter:
 				with open(self.fileName,'r') as f:
 						oldRecord = json.load(f)
 				self.oldTime = oldRecord['cumulativeTime']
+				self.oldRPMTime = oldRecord['cumulativeRPMxTime']
+				self.oldThrustTime = oldRecord['cumulativeThrustxTime']
+				self.time = 0
+				self.rpmTime = 0
+				self.thrustTime = 0
+				self.lastTime = time.time()
 				
 		def getCumulativeTime(self):
-				return (time.time()-self.startTime)+self.oldTime		
+				return self.time+self.oldTime
+				
+		def getCumulativeRPMxTime(self):
+				return self.rpmTime + self.oldRPMTime
+				
+		def getCumulativeThrustxTime(self):
+				return self.thrustTime + self.oldThrustTime		
+				
+		def meterTime(self,isMetering,rpm,thrust):
+				delta = time.time() - self.lastTime
+				self.lastTime = time.time()
+				
+				if isMetering:
+						self.time += delta
+						self.rpmTime += delta*rpm
+						self.thrustTime += delta*thrust
 				
 		def recordCumulativeTime(self):
-				record = {'cumulativeTime':self.getCumulativeTime()}
+				record = {'cumulativeTime':self.getCumulativeTime(),'cumulativeRPMxTime':self.getCumulativeRPMxTime(),'cumulativeThrustxTime':self.getCumulativeThrustxTime()}
 				with open(self.fileName,'w') as f:
 						json.dump(record,f)
 				
@@ -237,7 +258,14 @@ def updatePlotly():
 		stdscr.addstr(16,0,"Plotly Stream Data Points Sent: %10.0f"%(streamCount))
 		
 def updateHourMeter():
-	stdscr.addstr(20,0,"Cumulative Running Time: %s"%(str(datetime.timedelta(seconds=meter.getCumulativeTime()))))
+	global values
+	isMetering = False
+	if values[2] > 0:
+		isMetering = True
+	meter.meterTime(isMetering,values[2],values[3])
+	stdscr.addstr(20,0,"Cumulative Running Time:\t%s"%(str(datetime.timedelta(seconds=meter.getCumulativeTime()))))
+	stdscr.addstr(21,0,"Cumulative Revolutions:\t\t%g"%(meter.getCumulativeRPMxTime()/(meter.getCumulativeTime()+0.001)))
+	stdscr.addstr(22,0,"Average Thrust:\t\t\t%g"%(meter.getCumulativeThrustxTime()/(meter.getCumulativeTime()+0.001)))
 	meter.recordCumulativeTime()
 
 			
