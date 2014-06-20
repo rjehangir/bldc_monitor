@@ -130,7 +130,12 @@ class CumulativeTimeMeter:
 				self.startTime = time.time()
 				self.fileName = 'hourmeter.log'
 				with open(self.fileName,'r') as f:
-						oldRecord = json.load(f)
+						try:
+								oldRecord = json.load(f)
+						except ValueError, e:
+								oldRecord = {'cumulativeTime':0,'cumulativeRPSxTime':0,'cumulativeThrustxTime':0}
+								with open(self.fileName,'w') as f2:
+										json.dump(oldRecord,f2)
 				self.oldTime = oldRecord['cumulativeTime']
 				self.oldRPSTime = oldRecord['cumulativeRPSxTime']
 				self.oldThrustTime = oldRecord['cumulativeThrustxTime']
@@ -264,8 +269,8 @@ def updateHourMeter():
 		isMetering = True
 	meter.meterTime(isMetering,values[2],values[3])
 	stdscr.addstr(20,0,"Cumulative Running Time:\t%s"%(str(datetime.timedelta(seconds=meter.getCumulativeTime()))))
-	stdscr.addstr(21,0,"Cumulative Revolutions:\t\t%g"%(meter.getCumulativeRPSxTime()))
-	stdscr.addstr(22,0,"Average Thrust:\t\t\t%g"%(meter.getCumulativeThrustxTime()/(meter.getCumulativeTime()+0.001)))
+	stdscr.addstr(21,0,"Cumulative Revolutions:\t\t%10.0f"%(meter.getCumulativeRPSxTime()))
+	stdscr.addstr(22,0,"Average Thrust:\t\t\t%10.2f"%(meter.getCumulativeThrustxTime()/(meter.getCumulativeTime()+0.001)))
 	meter.recordCumulativeTime()
 
 			
