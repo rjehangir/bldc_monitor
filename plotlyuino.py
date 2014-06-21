@@ -178,7 +178,7 @@ sercon = SerialConnection()
 
 connected = False
 try:
-	sercon.openConnection('/dev/ttyACM0',115200)
+	sercon.openConnection('/dev/ttyUSB0',115200)
 	connected = True
 except:
 	connected = False
@@ -205,7 +205,7 @@ else:
 	stdscr.addstr(15,0,"Simulated data.")
 stdscr.refresh()
 
-command = 0
+command = 128
 streamCount = 0
 values = []
 
@@ -231,9 +231,9 @@ def getMotorFromTerminal():
 		  if command < 0:
 			  command = 0
 	elif key == ord(' '):
-		  command = 0
+		  command = 128
 	elif key == ord('q'):
-		  command = 0
+		  command = 128
 		  if connected:
 			sercon.ser.write(chr(command))
 		  plotter.closePlotly()

@@ -3,8 +3,8 @@
 #include "../../plotuino.h"
 
 #define VOLTAGE_SENSE_PIN A0
-#define CURRENT_SENSE_PIN A1
-#define FORCE_SENSE_PIN A2
+#define CURRENT_SENSE_PIN A2
+#define FORCE_SENSE_PIN A6
 #define TACHOMETER_INT_PIN 3
 #define SERVO1 9
 #define SERVO2 10
@@ -139,14 +139,14 @@ void measureVoltage(float dt) {
 }
 
 /** This function measure the current supplied from the power source to the speed 
- * controller using a Pololu ACS711LC carrier board. The output of this current 
- * sensor is 0.083 V/A. Like specified above, the Atmega328p has a 10 bit ADC and
+ * controller using a ACS715 current sensor chip. The output of this current 
+ * sensor is 0.133 V/A. Like specified above, the Atmega328p has a 10 bit ADC and
  * 5.0 V reference voltage so that it has 0.004883 V/step. Combining this with the
  * current sensor relation provides:
  * 
- * 0.004883 V/step x 1/0.083 A/V = 0.05883 A/step
+ * 0.004883 V/step x 1/0.133 A/V = 0.036714 A/step
  * 
- * The sensor measures +- 25A and is centered at V_ref/2 = 2.5 V or 511 steps.
+ * The sensor measures 0-30A and is biased at 0.5 V.
  * 
  * A low pass filter is also used on the current measurement to smooth it out
  * slightly. The low pass filter has a time constant of 0.1 s.
@@ -154,7 +154,7 @@ void measureVoltage(float dt) {
 void measureCurrent(float dt) {
   const static float k = 0.05883;
   const static float tau = 0.25;
-  const static int16_t center = 520;
+  const static int16_t center = 102; // equivalent to 0.5 V
   
   static bool initialized = false;
   if ( !initialized ) {
@@ -235,7 +235,7 @@ void setup() {
   initTachometer();
   setTareForce();
   
-  outputPWM(1200);
+  outputPWM((1860+1060)/2);
 }
 
 void loop() {
@@ -291,7 +291,7 @@ void loop() {
   /** Serial input to control motor speed */
   if ( Serial.available() > 0 ) {
     uint8_t input = Serial.read();
-    outputPWM(map(input,0,256,1200,2000));
+    outputPWM(map(input,0,256,1060,1860));
   }
 
 }
