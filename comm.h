@@ -1,9 +1,9 @@
-#ifndef PLOTUINO_H
-#define PLOTUINO_H
+#ifndef COMM_H
+#define COMM_H
 
 #include <WProgram.h>
 
-namespace Plotuino {
+namespace Comm {
 	void init(Stream* _stream);
 
 	void beginTransfer(uint8_t messageId);

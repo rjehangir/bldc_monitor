@@ -1,6 +1,6 @@
 #include <WProgram.h>
 #include <util/atomic.h>
-#include "../../plotuino.h"
+#include "comm.h"
 
 #define VOLTAGE_SENSE_PIN A0
 #define CURRENT_SENSE_PIN A2

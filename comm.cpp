@@ -1,4 +1,4 @@
-#include "plotuino.h"
+#include "comm.h"
 #include "struct/struct.h"
 #include <util/crc16.h>
 
@@ -8,7 +8,7 @@ namespace {
 	Stream* stream;
 }
 
-namespace Plotuino {
+namespace Comm {
 	void init(Stream* _stream) {
 		stream = _stream;
 	}
