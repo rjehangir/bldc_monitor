@@ -5,7 +5,7 @@
 #define VOLTAGE_SENSE_PIN A0
 #define CURRENT_SENSE_PIN A2
 #define FORCE_SENSE_PIN A6
-#define TACHOMETER_INT_PIN 3
+#define TACHOMETER_INT_PIN 2
 #define SERVO1 9
 #define SERVO2 10
 
@@ -33,9 +33,9 @@ float tareThrust = 0;
  * circuit. A timeout is implemented to prevent counting a single pulse as multiple
  * pulses (basically debouncing the pulse).
  */
-ISR(INT1_vect) {
+ISR(INT0_vect) {
   // Pulses are between 480 us and 200 us (at 1.67 kHz)
-  if ( micros()-lastPulseTimer > 200 ) {
+  if ( micros()-lastPulseTimer > 100 ) {
     pulseCount++;
     lastPulseTimer = micros();
   }
@@ -64,7 +64,7 @@ static __inline__ void checkForZeroPulses() {
   }
 }
 
-/** This function initializes the interrupt (INT1) for the tachometer
+/** This function initializes the interrupt (INT0) for the tachometer
  * pulses. It also has code to initialize the servo output, which will be
  * moved to a separate function eventually.
  */
@@ -80,9 +80,11 @@ void initTachometer() {
   TCCR1B = (1<<WGM13)|(1<<WGM12)|(1<<CS11);
   ICR1 = 40000; // CPU/prescaler/frequency = 16000000/8/50 = 10000 // 50 Hz PWM rate
   
-  // Attach the interrupt pin (INT1, Arduino Pin 3)
-  EICRA = (EICRA & ~((1 << ISC10) | (1 << ISC11))) | (RISING << ISC10);
-  EIMSK |= (1 << INT1);
+  // Attach the interrupt pins (INT0 and INT1, Arduino Pin 2, 3)
+  //EICRA = (EICRA & ~((1 << ISC10) | (1 << ISC11))) | (RISING << ISC10);
+  //EICRA = (EICRA & ~((1 << ISC00) | (1 << ISC01))) | (RISING << ISC00);  
+  EICRA |= (1 << ISC00) | (1 << ISC01) | (1 << ISC10) | (1 << ISC11);
+  EIMSK |= (1 << INT0) | (1 << INT1);
 }
 
 /** This function filters the RPM with a low-pass filter. */
@@ -231,7 +233,7 @@ void outputPWM(uint16_t _pwm) {
 
 void setup() {
   Serial.begin(115200);
-  Plotuino::init(&Serial);
+  Comm::init(&Serial);
   initTachometer();
   setTareForce();
   
@@ -265,20 +267,20 @@ void loop() {
    * can be sent under ideal conditions. In practice, this number will be lower. */
   if ( float(micros()-outputTimer)/1000000l > 0.1 ) {
     outputTimer = micros();
-    Plotuino::beginTransfer(0x01);
-//     /*Plotuino::send(voltage);
-//     Plotuino::send(current);
-//     Plotuino::send(voltage*current);
-//     Plotuino::send(getThrust()); // Thrust
-//     Plotuino::send(filteredRPM);
-//     Plotuino::send(filteredRPM/voltage);*/
+    Comm::beginTransfer(0x01);
+//     /*Comm::send(voltage);
+//     Comm::send(current);
+//     Comm::send(voltage*current);
+//     Comm::send(getThrust()); // Thrust
+//     Comm::send(filteredRPM);
+//     Comm::send(filteredRPM/voltage);*/
     
-    Plotuino::send(voltage);
-    Plotuino::send(current*voltage);
-    Plotuino::send(filteredRPM);
-    Plotuino::send(getThrust());
+    Comm::send(voltage);
+    Comm::send(current*voltage);
+    Comm::send(filteredRPM);
+    Comm::send(getThrust());
     
-    Plotuino::endTransfer();
+    Comm::endTransfer();
     
 //     Serial.print(voltage);
 //     Serial.print(" ");

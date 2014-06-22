@@ -194,7 +194,7 @@ curses.cbreak()
 stdscr.keypad(1)
 stdscr.nodelay(1)
 
-stdscr.addstr(0,0,"Plotlyuino Thrust Test Stand")
+stdscr.addstr(0,0,"Thrust Test Stand")
 stdscr.addstr(1,0,"============================")
 stdscr.addstr(3,0,"Adjust motor:\tUp/down, pgup/pgdown, scroll wheel")
 stdscr.addstr(4,0,"Stop motor: \tSPACE")
@@ -282,7 +282,7 @@ if __name__ == '__main__':
 	lastMeterRecord = time.time()
 	errorCount = 0
 	while True:
-		if time.time() - lastSerialRead > 0.05:
+		if time.time() - lastSerialRead > 0.025:
 			readSerial()
 			lastSerialRead = time.time()
 			
@@ -292,10 +292,9 @@ if __name__ == '__main__':
 			except IOError:
 				errorCount += 1
 				time.sleep(5)
-			stdscr.addstr(18,0,"Number of IOErrors: %6.0f"%(errorCount))
 			lastPlotlyUpdate = time.time()
 			
-		if time.time() - lastMeterRecord > 0.5:
+		if time.time() - lastMeterRecord > 0.20:
 			updateHourMeter()
 			lastMeterRecord = time.time()
 
