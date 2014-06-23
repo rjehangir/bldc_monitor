@@ -35,7 +35,7 @@ float tareThrust = 0;
  */
 ISR(INT0_vect) {
   // Pulses are between 480 us and 200 us (at 1.67 kHz)
-  if ( micros()-lastPulseTimer > 100 ) {
+  if ( micros()-lastPulseTimer > 200 ) {
     pulseCount++;
     lastPulseTimer = micros();
   }
@@ -81,8 +81,6 @@ void initTachometer() {
   ICR1 = 40000; // CPU/prescaler/frequency = 16000000/8/50 = 10000 // 50 Hz PWM rate
   
   // Attach the interrupt pins (INT0 and INT1, Arduino Pin 2, 3)
-  //EICRA = (EICRA & ~((1 << ISC10) | (1 << ISC11))) | (RISING << ISC10);
-  //EICRA = (EICRA & ~((1 << ISC00) | (1 << ISC01))) | (RISING << ISC00);  
   EICRA |= (1 << ISC00) | (1 << ISC01) | (1 << ISC10) | (1 << ISC11);
   EIMSK |= (1 << INT0) | (1 << INT1);
 }
@@ -154,7 +152,7 @@ void measureVoltage(float dt) {
  * slightly. The low pass filter has a time constant of 0.1 s.
  */
 void measureCurrent(float dt) {
-  const static float k = 0.05883;
+  const static float k = 0.036714;
   const static float tau = 0.25;
   const static int16_t center = 102; // equivalent to 0.5 V
   
