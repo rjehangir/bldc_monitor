@@ -94,19 +94,38 @@ void filterRPM(float dt) {
   filteredRPM = filteredRPM*(1-alpha) + rps*60/NUMBER_OF_MOTOR_POLES*2*alpha;
 }
 
+/** This function is from http://hacking.majenko.co.uk/making-accurate-adc-readings-on-arduino.
+ * It measures the actual value of VCC by comparing it with the Atmega328's internal 1.1V reference,
+ * which is more accurate than the voltage regulator. This value can then be used to more
+ * accurate measure the analog measurements. 
+ *
+ * The result is returned as a float.
+ */
+float readVcc() {
+  long result;
+  ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
+  delay(2);
+  ADCSRA |= _BV(ADSC);
+  while (bit_is_set(ADCSRA,ADSC));
+  result = ADCL;
+  result |= ADCH<<8;
+  result = 1125300L / result; // Provides voltage in mV
+  return result/1000.0f;
+}
+
 /** This function measures the voltage of the power source with the ADC. The
  * power source is connected through a voltage divider consisting of a 10Kohm
  * and 4.7Kohm resistor (2% tolerance). This produces a dividing factor:
  * 
  * V_out/V_in = R1 / (R1 + R2) = 4.7 / (4.7 + 10) = 0.3197
  * 
- * The Atmega328p has a 10-bit ADC and the analog reference voltage is 5.0V. Therefore,
- * there are 5.0/1024 V/step = 0.004883 V/step. The volts (V) in this expression is the 
+ * The Atmega328p has a 10-bit ADC and the analog reference voltage is Vcc. Therefore,
+ * there are Vcc/1023 V/step. The volts (V) in this expression is the 
  * same as V_out. Therefore,
  * 
- * 0.004883 V_out/step x 1/0.3197 V_in/V_out = 0.01527 V_in/step
+ * Vcc/1023 V_out/step x 1/0.3197 V_in/V_out = Vcc*0.00305761 V_in/step
  * 
- * This gives a max reading of 1023*0.01527 = 15.62 V_in.
+ * This gives a max reading of 1023*Vcc*0.00306 = 15.6 V_in.
  * 
  * A low pass filter is used to smooth out the analog readings. It has a time constant
  * of 0.1 s and is implemented with a pretty standard discrete formula:
@@ -118,24 +137,24 @@ void filterRPM(float dt) {
  * alpha = t/(t+T)
  * 
  * where T is the desired time constant (Tau) and t is period length of the 
- * sampling frequency. For the low pass with time constant of 0.1, and sampling
+ * sampling frequency. For the low pass with time constant of 0.25, and sampling
  * frequency of 100 Hz,
  * 
  * alpha = 0.01/(0.01+0.1) = 0.0909
  */
 void measureVoltage(float dt) {
-  const static float k = 0.01527;
+  const static float k = 0.00305761;
   const static float tau = 0.25;
   
   static bool initialized = false;
   if ( !initialized ) {
     initialized = true;
-    voltage = analogRead(VOLTAGE_SENSE_PIN)*k;
+    voltage = analogRead(VOLTAGE_SENSE_PIN)*readVcc()*k;
   }
   
   float alpha = dt/(dt+tau);
 
-  voltage = voltage*(1-alpha) + analogRead(VOLTAGE_SENSE_PIN)*k*alpha;
+  voltage = voltage*(1-alpha) + analogRead(VOLTAGE_SENSE_PIN)*readVcc()*k*alpha;
 }
 
 /** This function measure the current supplied from the power source to the speed 
@@ -144,27 +163,27 @@ void measureVoltage(float dt) {
  * 5.0 V reference voltage so that it has 0.004883 V/step. Combining this with the
  * current sensor relation provides:
  * 
- * 0.004883 V/step x 1/0.133 A/V = 0.036714 A/step
+ * Vcc/1023 V/step x 1/0.133 A/V = Vcc*0.0073498 A/step
  * 
  * The sensor measures 0-30A and is biased at 0.5 V.
  * 
  * A low pass filter is also used on the current measurement to smooth it out
- * slightly. The low pass filter has a time constant of 0.1 s.
+ * slightly. The low pass filter has a time constant of 0.25 s.
  */
 void measureCurrent(float dt) {
-  const static float k = 0.036714;
+  const static float k = 0.0073498;
   const static float tau = 0.25;
   const static int16_t center = 102; // equivalent to 0.5 V
   
   static bool initialized = false;
   if ( !initialized ) {
     initialized = true;
-    current = (analogRead(CURRENT_SENSE_PIN)-center)*k;
+    current = (analogRead(CURRENT_SENSE_PIN)-center)*readVcc()*k;
   }
   
   float alpha = dt/(dt+tau);
   
-  current = current*(1-alpha) + (analogRead(CURRENT_SENSE_PIN)-center)*k*alpha;
+  current = current*(1-alpha) + (analogRead(CURRENT_SENSE_PIN)-center)*readVcc()*k*alpha;
 }
 
 /** This function measures the force on the FC22 compression load cell. The load
@@ -178,11 +197,11 @@ void measureCurrent(float dt) {
  * 
  * The voltage can be calculated from:
  * 
- * V = ADC/1024*5.0 = ADC*0.004883
+ * V = ADC/1023*Vcc = ADC/1023*Vcc
  * 
  * So the resulting relationship is:
  * 
- * F = 6.25*(0.004883*ADC-0.5)
+ * F = 6.25*(ADC*Vcc/1023-0.5)
  * 
  * In this measurement scenario, the sensor is preloaded with a tare weight that allows
  * both positive and negative loads to be measured. This function only provides the 
@@ -191,12 +210,12 @@ void measureCurrent(float dt) {
  */
 void measureForce(float dt) {
   const static float Kf = 6.25;
-  const static float Kadc = 0.004883;
-  const static float offset = 0.25;
+  const static float Kadc = 1.0/1023.0;
+  const static float offset = 0.5;
   
   const static float tau = 0.1;
   
-  float newThrust = Kf*(Kadc*analogRead(FORCE_SENSE_PIN)-offset);
+  float newThrust = Kf*(readVcc()*Kadc*analogRead(FORCE_SENSE_PIN)-offset);
   
   float alpha = dt/(dt+tau);
   
