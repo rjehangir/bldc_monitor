@@ -11,6 +11,9 @@
 
 #define NUMBER_OF_MOTOR_POLES 12
 
+#define ESC_MAX_PULSEWIDTH 1860
+#define ESC_MIN_PULSEWIDTH 1060
+
 #define DISTANCE_FROM_PROPELLER_AXIS_TO_PIVOT (11.0f)
 #define DISTANCE_FROM_LOAD_CELL_AXIS_TO_PIVOT (12.0f)
 
@@ -254,7 +257,7 @@ void setup() {
   initTachometer();
   setTareForce();
   
-  outputPWM((1860+1060)/2);
+  outputPWM((ESC_MAX_PULSE_WIDTH+ESC_MIN_PULSE_WIDTH)/2);
 }
 
 void loop() {
@@ -310,7 +313,7 @@ void loop() {
   /** Serial input to control motor speed */
   if ( Serial.available() > 0 ) {
     uint8_t input = Serial.read();
-    outputPWM(map(input,0,256,1060,1860));
+    outputPWM(map(input,0,256,ESC_MIN_PULSE_WIDTH,ESC_MAX_PULSE_WIDTH));
   }
 
 }
