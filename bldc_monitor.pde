@@ -1,6 +1,13 @@
 #include <WProgram.h>
 #include <util/atomic.h>
+#include <EasyTransfer.h>
 #include "comm.h"
+
+#define OUTPUT_EASYTRANSFER 1
+#define OUTPUT_BINARY 2
+#define OUTPUT_READABLE 3
+
+#define OUTPUT_TYPE OUTPUT_READABLE
 
 #define VOLTAGE_SENSE_PIN A0
 #define CURRENT_SENSE_PIN A2
@@ -287,27 +294,34 @@ void loop() {
    * can be sent under ideal conditions. In practice, this number will be lower. */
   if ( float(micros()-outputTimer)/1000000l > 0.1 ) {
     outputTimer = micros();
-    Comm::beginTransfer(0x01);
-//     /*Comm::send(voltage);
-//     Comm::send(current);
-//     Comm::send(voltage*current);
-//     Comm::send(getThrust()); // Thrust
-//     Comm::send(filteredRPM);
-//     Comm::send(filteredRPM/voltage);*/
     
-    Comm::send(voltage);
-    Comm::send(current*voltage);
-    Comm::send(filteredRPM);
-    Comm::send(getThrust());
-    
-    Comm::endTransfer();
-    
-//     Serial.print(voltage);
-//     Serial.print(" ");
-//     Serial.print(current);
-//     Serial.print(" ");
-//     Serial.print(voltage*current);
-//     Serial.println(" ");
+    switch ( OUTPUT_TYPE ) {
+    	case OUTPUT_EASYTRANSFER:
+			{
+		
+			}
+			break;
+    	case OUTPUT_BINARY:
+			{
+				Comm::beginTransfer(0x01);
+				Comm::send(voltage);
+				Comm::send(current*voltage);
+				Comm::send(filteredRPM);
+				Comm::send(getThrust());
+				Comm::endTransfer();	
+			}
+			break;
+		case OUTPUT_READABLE:
+			{
+				Serial.print(getThrust()); Serial.print(" lb ");
+				Serial.print(filteredRPM); Serial.print(" RPM ");
+				Serial.print(current*voltage); Serial.print(" W ");
+				Serial.println("");
+			}
+			break;
+		case default:
+			Serial.println("Must define OUTPUT_TYPE.");    
+    } 
   }
   
   /** Serial input to control motor speed */
