@@ -1,9 +1,8 @@
 #include <WProgram.h>
 #include <util/atomic.h>
-#include <EasyTransfer.h>
 #include "comm.h"
 
-#define OUTPUT_EASYTRANSFER 1
+#define OUTPUT_TRANSFER 1
 #define OUTPUT_BINARY 2
 #define OUTPUT_READABLE 3
 
@@ -296,12 +295,12 @@ void loop() {
     outputTimer = micros();
     
     switch ( OUTPUT_TYPE ) {
-    	case OUTPUT_EASYTRANSFER:
+    case OUTPUT_TRANSFER:
 			{
-		
+		    Serial.println("");
 			}
 			break;
-    	case OUTPUT_BINARY:
+    case OUTPUT_BINARY:
 			{
 				Comm::beginTransfer(0x01);
 				Comm::send(voltage);
@@ -311,7 +310,7 @@ void loop() {
 				Comm::endTransfer();	
 			}
 			break;
-		case OUTPUT_READABLE:
+	  case OUTPUT_READABLE:
 			{
 				Serial.print(getThrust()); Serial.print(" lb ");
 				Serial.print(filteredRPM); Serial.print(" RPM ");
@@ -319,7 +318,7 @@ void loop() {
 				Serial.println("");
 			}
 			break;
-		case default:
+		default:
 			Serial.println("Must define OUTPUT_TYPE.");    
     } 
   }
