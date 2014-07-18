@@ -1,12 +1,13 @@
 #include <WProgram.h>
 #include <util/atomic.h>
+#include "Transfer.h"
 #include "comm.h"
 
 #define OUTPUT_TRANSFER 1
 #define OUTPUT_BINARY 2
 #define OUTPUT_READABLE 3
 
-#define OUTPUT_TYPE OUTPUT_READABLE
+#define OUTPUT_TYPE OUTPUT_TRANSFER
 
 #define VOLTAGE_SENSE_PIN A0
 #define CURRENT_SENSE_PIN A2
@@ -37,6 +38,15 @@ float current = 0;
 float filteredRPM = 0;
 float thrust = 0;
 float tareThrust = 0;
+
+struct TransferData {
+  float voltage;
+  float power;
+  float rpm;
+  float thrust;
+} transferData;
+
+Transfer transfer;
 
 /** The following interrupt routine captures pulses from the optocouple/low-pass
  * circuit. A timeout is implemented to prevent counting a single pulse as multiple
@@ -262,6 +272,8 @@ void setup() {
   Comm::init(&Serial);
   initTachometer();
   setTareForce();
+
+  transfer.setStream(&Serial);
   
   outputPWM((ESC_MAX_PULSE_WIDTH+ESC_MIN_PULSE_WIDTH)/2);
 }
@@ -297,7 +309,7 @@ void loop() {
     switch ( OUTPUT_TYPE ) {
     case OUTPUT_TRANSFER:
 			{
-		    Serial.println("");
+        transfer.send(&transferData);
 			}
 			break;
     case OUTPUT_BINARY:
