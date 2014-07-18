@@ -10,41 +10,46 @@
 #define OUTPUT_TYPE OUTPUT_TRANSFER
 
 #define VOLTAGE_SENSE_PIN A0
-#define CURRENT_SENSE_PIN A2
-#define FORCE_SENSE_PIN A6
-#define TACHOMETER_INT_PIN 2
+#define CURRENT_SENSE_PIN_A A2
+#define CURRENT_SENSE_PIN_B A3
+#define FORCE_SENSE_PIN_A A6
+#define FORCE_SENSE_PIN_B A7
+#define TACHOMETER_INT_PIN_A 2
+#define TACHOMETER_INT_PIN_B 3 // ??
 #define SERVO1 9
 #define SERVO2 10
 
 #define NUMBER_OF_MOTOR_POLES 12
 
-#define ESC_MAX_PULSE_WIDTH 1860
-#define ESC_MIN_PULSE_WIDTH 1060
+#define ESC_MAX_PULSE_WIDTH 1060
+#define ESC_MIN_PULSE_WIDTH 1860
 
 #define DISTANCE_FROM_PROPELLER_AXIS_TO_PIVOT (11.0f)
 #define DISTANCE_FROM_LOAD_CELL_AXIS_TO_PIVOT (12.0f)
 
 #define FORCE_RATIO (DISTANCE_FROM_LOAD_CELL_AXIS_TO_PIVOT/DISTANCE_FROM_PROPELLER_AXIS_TO_PIVOT)
 
-volatile uint32_t pulseCount = 0;
-volatile uint32_t pulseTimer = 0;
-volatile uint32_t lastPulseTimer = 0;
-volatile int32_t rps = 0;
+volatile uint32_t pulseCountA = 0;
+volatile uint32_t pulseTimerA = 0;
+volatile uint32_t lastPulseTimerA = 0;
+volatile int32_t rpsA = 0;
+volatile uint32_t pulseCountB = 0;
+volatile uint32_t pulseTimerB = 0;
+volatile uint32_t lastPulseTimerB = 0;
+volatile int32_t rpsB = 0;
 
 uint32_t outputTimer = 0;
 
-float voltage = 0;
-float current = 0;
-float filteredRPM = 0;
 float thrust = 0;
 float tareThrust = 0;
 
 struct TransferData {
+  int16_t rpmA;
+  int16_t rpmB;
+  float currentA;
+  float currentB;
   float voltage;
-  float power;
-  float rpm;
-  float thrust;
-} transferData;
+} data;
 
 Transfer transfer;
 
@@ -54,15 +59,29 @@ Transfer transfer;
  */
 ISR(INT0_vect) {
   // Pulses are between 480 us and 200 us (at 1.67 kHz)
-  if ( micros()-lastPulseTimer > 200 ) {
-    pulseCount++;
-    lastPulseTimer = micros();
+  if ( micros()-lastPulseTimerA > 200 ) {
+    pulseCountA++;
+    lastPulseTimerA = micros();
   }
   
-  if ( pulseCount > 10 ) {
-    rps = pulseCount/(float(micros()-pulseTimer)/1000000.0f);
-    pulseTimer = micros();
-    pulseCount = 0;
+  if ( pulseCountA > 10 ) {
+    rpsA = pulseCountA/(float(micros()-pulseTimerA)/1000000.0f);
+    pulseTimerA = micros();
+    pulseCountA = 0;
+  }
+}
+
+ISR(INT1_vect) {
+  // Pulses are between 480 us and 200 us (at 1.67 kHz)
+  if ( micros()-lastPulseTimerB > 200 ) {
+    pulseCountB++;
+    lastPulseTimerB = micros();
+  }
+  
+  if ( pulseCountB > 10 ) {
+    rpsB = pulseCountB/(float(micros()-pulseTimerB)/1000000.0f);
+    pulseTimerB = micros();
+    pulseCountB = 0;
   }
 }
 
@@ -75,11 +94,20 @@ static __inline__ void checkForZeroPulses() {
   uint32_t safePulseTimer = 0;
   ATOMIC_BLOCK(ATOMIC_FORCEON)
   {
-    safePulseTimer = pulseTimer;
+    safePulseTimer = pulseTimerA;
   }
   
   if ( micros()-safePulseTimer > 300000l ) {
-    rps = 0;
+    rpsA = 0;
+  }
+
+  ATOMIC_BLOCK(ATOMIC_FORCEON)
+  {
+    safePulseTimer = pulseTimerB;
+  }
+  
+  if ( micros()-safePulseTimer > 300000l ) {
+    rpsB = 0;
   }
 }
 
@@ -90,7 +118,8 @@ static __inline__ void checkForZeroPulses() {
 void initTachometer() {
   // Initialize input/output pins
   //pinMode(PWM_PIN,OUTPUT);
-  pinMode(TACHOMETER_INT_PIN,INPUT);
+  pinMode(TACHOMETER_INT_PIN_A,INPUT);
+  pinMode(TACHOMETER_INT_PIN_B,INPUT);
   pinMode(SERVO1,OUTPUT);
   pinMode(SERVO2,OUTPUT);
   
@@ -105,12 +134,12 @@ void initTachometer() {
 }
 
 /** This function filters the RPM with a low-pass filter. */
-void filterRPM(float dt) {
+void filterRPM(int16_t &rpm,int16_t newRPM,float dt) {
   const static float tau = 0.25;
 
   float alpha = dt/(dt+tau);
   
-  filteredRPM = filteredRPM*(1-alpha) + rps*60/NUMBER_OF_MOTOR_POLES*2*alpha;
+  rpm = rpm*(1-alpha) + newRPM/NUMBER_OF_MOTOR_POLES*2*alpha;
 }
 
 /** This function is from http://hacking.majenko.co.uk/making-accurate-adc-readings-on-arduino.
@@ -168,12 +197,12 @@ void measureVoltage(float dt) {
   static bool initialized = false;
   if ( !initialized ) {
     initialized = true;
-    voltage = analogRead(VOLTAGE_SENSE_PIN)*readVcc()*k;
+    data.voltage = analogRead(VOLTAGE_SENSE_PIN)*readVcc()*k;
   }
   
   float alpha = dt/(dt+tau);
 
-  voltage = voltage*(1-alpha) + analogRead(VOLTAGE_SENSE_PIN)*readVcc()*k*alpha;
+  data.voltage = data.voltage*(1-alpha) + analogRead(VOLTAGE_SENSE_PIN)*readVcc()*k*alpha;
 }
 
 /** This function measure the current supplied from the power source to the speed 
@@ -197,12 +226,14 @@ void measureCurrent(float dt) {
   static bool initialized = false;
   if ( !initialized ) {
     initialized = true;
-    current = (analogRead(CURRENT_SENSE_PIN)-center)*readVcc()*k;
+    data.currentA = (analogRead(CURRENT_SENSE_PIN_A)-center)*readVcc()*k;
+    data.currentB = (analogRead(CURRENT_SENSE_PIN_B)-center)*readVcc()*k;
   }
   
   float alpha = dt/(dt+tau);
   
-  current = current*(1-alpha) + (analogRead(CURRENT_SENSE_PIN)-center)*readVcc()*k*alpha;
+  data.currentA = data.currentA*(1-alpha) + (analogRead(CURRENT_SENSE_PIN_A)-center)*readVcc()*k*alpha;
+  data.currentB = data.currentB*(1-alpha) + (analogRead(CURRENT_SENSE_PIN_B)-center)*readVcc()*k*alpha;
 }
 
 /** This function measures the force on the FC22 compression load cell. The load
@@ -234,7 +265,7 @@ void measureForce(float dt) {
   
   const static float tau = 0.1;
   
-  float newThrust = Kf*(readVcc()*Kadc*analogRead(FORCE_SENSE_PIN)-offset);
+  float newThrust = Kf*(readVcc()*Kadc*analogRead(FORCE_SENSE_PIN_A)-offset);
   
   float alpha = dt/(dt+tau);
   
@@ -293,7 +324,8 @@ void loop() {
     measureCurrent(dt);
     measureForce(dt);
     checkForZeroPulses();
-    filterRPM(dt);
+    filterRPM(data.rpmA,rpsA*60,dt);
+    filterRPM(data.rpmB,rpsB*60,dt);
     measurementTimer = micros();
   }
   
@@ -309,25 +341,35 @@ void loop() {
     switch ( OUTPUT_TYPE ) {
     case OUTPUT_TRANSFER:
 			{
-        transfer.send(&transferData);
+        transfer.send(&data);
 			}
 			break;
     case OUTPUT_BINARY:
 			{
 				Comm::beginTransfer(0x01);
-				Comm::send(voltage);
-				Comm::send(current*voltage);
-				Comm::send(filteredRPM);
+				Comm::send(data.voltage);
+				Comm::send(data.currentA*data.voltage);
+				Comm::send(data.rpmA);
 				Comm::send(getThrust());
 				Comm::endTransfer();	
 			}
 			break;
 	  case OUTPUT_READABLE:
 			{
-				Serial.print(getThrust()); Serial.print(" lb ");
-				Serial.print(filteredRPM); Serial.print(" RPM ");
-				Serial.print(current*voltage); Serial.print(" W ");
+        Serial.write(27);       // ESC command
+        Serial.print("[2J");    // clear screen command
+        Serial.write(27);
+        Serial.print("[H");     // cursor to home command
+				Serial.println("== Motor A ==");
+        Serial.print(getThrust()); Serial.print(" lb\t");
+				Serial.print(data.rpmA); Serial.print(" RPM\t");
+				Serial.print(data.currentA*data.voltage); Serial.print(" W");
 				Serial.println("");
+        Serial.println("== Motor B ==");
+        Serial.print(getThrust()); Serial.print(" lb\t");
+        Serial.print(data.rpmA); Serial.print(" RPM\t");
+        Serial.print(data.currentA*data.voltage); Serial.print(" W ");
+        Serial.println("");
 			}
 			break;
 		default:
