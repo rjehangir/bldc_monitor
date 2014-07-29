@@ -214,19 +214,19 @@ def getMotorFromTerminal():
  	key = stdscr.getch()
 	
 	if key == curses.KEY_UP:
-		  command += 1
+		  command += 5
 		  if command > 1900:
 			  command = 1900
 	elif key == curses.KEY_DOWN:
-		  command -= 1
+		  command -= 5
 		  if command < 1100:
 			  command = 1100
 	elif key == curses.KEY_PPAGE:
-		  command += 10
+		  command += 50
 		  if command > 1900:
 			  command = 1900
 	elif key == curses.KEY_NPAGE:
-		  command -= 10
+		  command -= 50
 		  if command < 1100:
 			  command = 1100
 	elif key == ord(' '):
@@ -290,7 +290,8 @@ if __name__ == '__main__':
 			lastSerialRead = time.time()
 			length = struct.calcsize(formatString)
 			data = sercon.read(length)
-			values = struct.unpack(formatString,data)
+			if data is not None:
+				values = struct.unpack(formatString,data)
 			
 		if True and (time.time() - lastPlotlyUpdate > 0.20):
 			try:
@@ -308,7 +309,7 @@ if __name__ == '__main__':
 		
 		if time.time() - lastCommandUpdate > 0.1 and command is not lastCommand and connected:
 			sercon.ser.write('\xFF\xFA')
-			txData = struct.pack('HH',[command,command])
+			txData = struct.pack('HH',command,command)
 			crc16 = crcmod.mkCrcFun(0x11021,0xFFFF,True)
 			calcChecksum = crc16(txData)
 			calcChecksum = (~calcChecksum) % 2**16  # convert to uint16_t
