@@ -8,6 +8,7 @@ import time
 import datetime
 import plotly.plotly as py
 import json
+import signal
 import sys
 
 class SerialConnection:
@@ -288,9 +289,10 @@ if __name__ == '__main__':
 		if time.time() - lastSerialRead > 0.025:
 			lastSerialRead = time.time()
 			length = struct.calcsize(formatString)
-			data = sc.read(length)
+			data = sercon.read(length)
+			values = struct.unpack(formatString,data)
 			
-		if False and (time.time() - lastPlotlyUpdate > 0.20):
+		if True and (time.time() - lastPlotlyUpdate > 0.20):
 			try:
 				updatePlotly()
 			except IOError:

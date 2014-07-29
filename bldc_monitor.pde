@@ -1,13 +1,11 @@
 #include <WProgram.h>
 #include <util/atomic.h>
 #include "Transfer.h"
-#include "comm.h"
 
 #define OUTPUT_TRANSFER 1
-#define OUTPUT_BINARY 2
-#define OUTPUT_READABLE 3
+#define OUTPUT_READABLE 2
 
-#define OUTPUT_TYPE OUTPUT_READABLE
+#define OUTPUT_TYPE OUTPUT_TRANSFER
 
 #define VOLTAGE_SENSE_PIN A0
 #define CURRENT_SENSE_PIN_A A2
@@ -300,7 +298,6 @@ void outputPWM(uint16_t _pwm) {
 
 void setup() {
   Serial.begin(115200);
-  Comm::init(&Serial);
   initTachometer();
   setTareForce();
 
@@ -344,17 +341,7 @@ void loop() {
         transfer.send(&data);
 			}
 			break;
-    case OUTPUT_BINARY:
-			{
-				Comm::beginTransfer(0x01);
-				Comm::send(data.voltage);
-				Comm::send(data.currentA*data.voltage);
-				Comm::send(data.rpmA);
-				Comm::send(getThrust());
-				Comm::endTransfer();	
-			}
-			break;
-	  case OUTPUT_READABLE:
+    case OUTPUT_READABLE:
 			{
         Serial.write(27);       // ESC command
         Serial.print("[2J");    // clear screen command

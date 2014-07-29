@@ -30,8 +30,7 @@ cmake_minimum_required (VERSION 2.6)
 ###############################################################################
 project (bldc_monitor)
 set(arduino_libs)
-set(sources comm.cpp
-            Transfer.cpp)
+set(sources Transfer.cpp)
 
 ###############################################################################
 #                            Default make settings                            #
