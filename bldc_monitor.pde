@@ -49,6 +49,11 @@ struct BLDCMonitorStruct {
   float voltage;
 } data;
 
+struct BLDCCommandStruct {
+  int16_t pwmA;
+  int16_t pwmB;
+} command;
+
 Transfer transfer;
 
 /** The following interrupt routine captures pulses from the optocouple/low-pass
@@ -365,9 +370,8 @@ void loop() {
   }
   
   /** Serial input to control motor speed */
-  if ( Serial.available() > 0 ) {
-    uint8_t input = Serial.read();
-    outputPWM(map(input,0,256,ESC_MIN_PULSE_WIDTH,ESC_MAX_PULSE_WIDTH));
+  if ( transfer.receive(&command) ) {
+    outputPWM(map(command.pwmA,0,256,ESC_MIN_PULSE_WIDTH,ESC_MAX_PULSE_WIDTH));
   }
 
 }

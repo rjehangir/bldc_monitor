@@ -204,7 +204,7 @@ else:
 	stdscr.addstr(15,0,"Simulated data.")
 stdscr.refresh()
 
-command = 128
+command = 1500
 streamCount = 0
 values = []
 
@@ -215,24 +215,24 @@ def getMotorFromTerminal():
 	
 	if key == curses.KEY_UP:
 		  command += 1
-		  if command > 255:
-			  command = 255
+		  if command > 1900:
+			  command = 1900
 	elif key == curses.KEY_DOWN:
 		  command -= 1
-		  if command < 0:
-			  command = 0
+		  if command < 1100:
+			  command = 1100
 	elif key == curses.KEY_PPAGE:
 		  command += 10
-		  if command > 255:
-			  command = 255
+		  if command > 1900:
+			  command = 1900
 	elif key == curses.KEY_NPAGE:
 		  command -= 10
-		  if command < 0:
-			  command = 0
+		  if command < 1100:
+			  command = 1100
 	elif key == ord(' '):
-		  command = 128
+		  command = 1500
 	elif key == ord('q'):
-		  command = 128
+		  command = 1500
 		  if connected:
 			sercon.ser.write(chr(command))
 		  plotter.closePlotly()
@@ -307,7 +307,14 @@ if __name__ == '__main__':
 		getMotorFromTerminal()
 		
 		if time.time() - lastCommandUpdate > 0.1 and command is not lastCommand and connected:
-			sercon.ser.write(chr(command))
+			sercon.ser.write('\xFF\xFA')
+			txData = struct.pack('HH',[command,command])
+			crc16 = crcmod.mkCrcFun(0x11021,0xFFFF,True)
+			calcChecksum = crc16(txData)
+			calcChecksum = (~calcChecksum) % 2**16  # convert to uint16_t
+			sercon.ser.write(txData)
+			sercon.ser.write(struct.pack('H',calcChecksum))
+
 			lastCommand = command
 			lastCommandUpdate = time.time()
 
