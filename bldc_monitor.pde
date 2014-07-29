@@ -7,7 +7,7 @@
 #define OUTPUT_BINARY 2
 #define OUTPUT_READABLE 3
 
-#define OUTPUT_TYPE OUTPUT_TRANSFER
+#define OUTPUT_TYPE OUTPUT_READABLE
 
 #define VOLTAGE_SENSE_PIN A0
 #define CURRENT_SENSE_PIN_A A2
@@ -43,7 +43,7 @@ uint32_t outputTimer = 0;
 float thrust = 0;
 float tareThrust = 0;
 
-struct TransferData {
+struct BLDCMonitorStruct {
   int16_t rpmA;
   int16_t rpmB;
   float currentA;

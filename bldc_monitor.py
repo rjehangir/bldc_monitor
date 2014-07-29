@@ -19,9 +19,10 @@ class SerialConnection:
 	
 	## This function is temporary for testing purposes.
 	def readMessageFake(self):
-		return np.random.normal(size=6)
+		formatString = 'HHfff'
+		return np.random.normal(size=struct.calcsize(formatString))
 		
-	def readMessage(self):
+	def read(self,length):
 		preamble = ['\xFF','\xFA'];
 		input = [0x00,0x00]
 		input[1] = self.ser.read(1)
@@ -31,9 +32,6 @@ class SerialConnection:
 			else:
 				input[0] = input[1]
 				input[1] = self.ser.read(1)
-
-		#Get length
-		length = ord(self.ser.read(1))
 		
 		while ( self.ser.inWaiting() < length + 2 ):
 			pass
@@ -51,17 +49,17 @@ class SerialConnection:
 		calcChecksum = (~calcChecksum) % 2**16  # convert to uint16_t
 
 		if ( checksum != calcChecksum ):
-			#print "Failed checksum."
+			print "Failed checksum."
 			return
 		      
-		#Break data into useful parts
-		messageType = struct.unpack('H',data[0:2])[0]
-		numValues = int(length/4)
-		values = []
-		for i in range(numValues):
-			values.append(struct.unpack('f',data[4*i+1:4*i+5])[0])
+		return data
 
-		return values
+def sigint_handler(*args):
+	print "Closing serial port."
+	sc.ser.close()
+	print "Quiting gracefully."
+	time.sleep(0.25)
+	sys.exit()
 
 class PlotlyPlotter:
 	def initPlotly(self):
@@ -272,21 +270,27 @@ def updateHourMeter():
 	stdscr.addstr(21,0,"Cumulative Revolutions:\t\t%10.0f"%(meter.getCumulativeRPSxTime()))
 	stdscr.addstr(22,0,"Average Thrust:\t\t\t%10.2f"%(meter.getCumulativeThrustxTime()/(meter.getCumulativeTime()+0.001)))
 	meter.recordCumulativeTime()
-
 			
 if __name__ == '__main__':
+	signal.signal(signal.SIGINT, sigint_handler)
+
 	lastCommandUpdate = time.time()
 	lastCommand = 0
 	lastSerialRead = time.time()
 	lastPlotlyUpdate = time.time()
 	lastMeterRecord = time.time()
 	errorCount = 0
+
+	formatString = 'HHfff'
+	data = []
+
 	while True:
 		if time.time() - lastSerialRead > 0.025:
-			readSerial()
 			lastSerialRead = time.time()
+			length = struct.calcsize(formatString)
+			data = sc.read(length)
 			
-		if time.time() - lastPlotlyUpdate > 0.20:
+		if False and (time.time() - lastPlotlyUpdate > 0.20):
 			try:
 				updatePlotly()
 			except IOError:
