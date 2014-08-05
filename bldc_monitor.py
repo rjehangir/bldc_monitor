@@ -177,7 +177,7 @@ sercon = SerialConnection()
 
 connected = False
 try:
-	sercon.openConnection('/dev/ttyUSB0',115200)
+	sercon.openConnection('/dev/ttyUSB1',115200)
 	connected = True
 except:
 	connected = False
@@ -254,7 +254,7 @@ def updatePlotly():
 	if values is not None:
 		global streamCount
 		streamCount += 1
-		plotter.streamToPlotly(values)
+		#plotter.streamToPlotly(values)
 		stdscr.addstr(10,5,"Thrust:\t%10.2f lb\t%10.0f g"%(values[3],values[3]*453.6))
 		stdscr.addstr(11,5,"RPM:\t%10.0f rev/min"%(values[2]))
 		stdscr.addstr(12,5,"Power:\t%10.0f W"%(values[1]))
@@ -282,16 +282,16 @@ if __name__ == '__main__':
 	lastMeterRecord = time.time()
 	errorCount = 0
 
-	formatString = 'HHfff'
-	data = []
+	formatString = 'HHffff'
+	bldcdata = []
 
 	while True:
 		if time.time() - lastSerialRead > 0.025:
 			lastSerialRead = time.time()
 			length = struct.calcsize(formatString)
-			data = sercon.read(length)
-			if data is not None:
-				values = struct.unpack(formatString,data)
+			bldcdata = sercon.read(length)
+			if bldcdata is not None:
+				values = struct.unpack(formatString,bldcdata)
 			
 		if True and (time.time() - lastPlotlyUpdate > 0.20):
 			try:
@@ -303,7 +303,7 @@ if __name__ == '__main__':
 			
 		if time.time() - lastMeterRecord > 0.20:
 			updateHourMeter()
-			lastMeterRecord = time.time()
+			
 
 		getMotorFromTerminal()
 		

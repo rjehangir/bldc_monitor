@@ -5,7 +5,7 @@
 #define OUTPUT_TRANSFER 1
 #define OUTPUT_READABLE 2
 
-#define OUTPUT_TYPE OUTPUT_TRANSFER
+#define OUTPUT_TYPE OUTPUT_READABLE
 
 #define VOLTAGE_SENSE_PIN A0
 #define CURRENT_SENSE_PIN_A A2
@@ -47,6 +47,7 @@ struct BLDCMonitorStruct {
   float currentA;
   float currentB;
   float voltage;
+  float thrust;
 } data;
 
 struct BLDCCommandStruct {
@@ -328,6 +329,7 @@ void loop() {
     checkForZeroPulses();
     filterRPM(data.rpmA,rpsA*60,dt);
     filterRPM(data.rpmB,rpsB*60,dt);
+    data.thrust = getThrust();
     measurementTimer = micros();
   }
   
@@ -342,7 +344,8 @@ void loop() {
     
     switch ( OUTPUT_TYPE ) {
     case OUTPUT_TRANSFER:
-			{
+			
+	{
         transfer.send(&data);
 			}
 			break;
@@ -370,8 +373,18 @@ void loop() {
   }
   
   /** Serial input to control motor speed */
-  if ( transfer.receive(&command) ) {
-    outputPWM(map(command.pwmA,0,256,ESC_MIN_PULSE_WIDTH,ESC_MAX_PULSE_WIDTH));
+  switch (OUTPUT_TYPE) {
+  case OUTPUT_TRANSFER:
+    if ( transfer.receive(&command) ) {
+      outputPWM(command.pwmA);
+    }  
+    break;
+  case OUTPUT_READABLE:
+    if (Serial.available() > 0) {
+      command.pwmA = map(Serial.read(),0,256,ESC_MIN_PULSE_WIDTH,ESC_MAX_PULSE_WIDTH);
+      outputPWM(command.pwmA);
+    }
+    break;
   }
 
 }
