@@ -5,7 +5,7 @@
 #define OUTPUT_TRANSFER 1
 #define OUTPUT_READABLE 2
 
-#define OUTPUT_TYPE OUTPUT_READABLE
+#define OUTPUT_TYPE OUTPUT_TRANSFER
 
 #define VOLTAGE_SENSE_PIN A0
 #define CURRENT_SENSE_PIN_A A2
@@ -48,6 +48,8 @@ struct BLDCMonitorStruct {
   float currentB;
   float voltage;
   float thrust;
+  int16_t pwmA;
+  int16_t pwmB;
 } data;
 
 struct BLDCCommandStruct {
@@ -121,7 +123,6 @@ static __inline__ void checkForZeroPulses() {
  */
 void initTachometer() {
   // Initialize input/output pins
-  //pinMode(PWM_PIN,OUTPUT);
   pinMode(TACHOMETER_INT_PIN_A,INPUT);
   pinMode(TACHOMETER_INT_PIN_B,INPUT);
   pinMode(SERVO1,OUTPUT);
@@ -310,12 +311,14 @@ void setup() {
   transfer.setStream(&Serial);
   
   outputPWM((ESC_MAX_PULSE_WIDTH+ESC_MIN_PULSE_WIDTH)/2);
+  delay(1000);
 }
 
 void loop() {
   
   static long measurementTimer;
   static long outputTimer;
+  static long inputTimer;
   
   float dt = float(micros()-measurementTimer)/1000000l;
   
@@ -356,14 +359,18 @@ void loop() {
         Serial.write(27);
         Serial.print("[H");     // cursor to home command
 				Serial.println("== Motor A ==");
-        Serial.print(getThrust()); Serial.print(" lb\t");
-				Serial.print(data.rpmA); Serial.print(" RPM\t");
-				Serial.print(data.currentA*data.voltage); Serial.print(" W");
+        Serial.print(getThrust()); Serial.println(" lb");
+				Serial.print(data.rpmA); Serial.println(" RPM");
+				Serial.print(data.currentA*data.voltage); Serial.println(" W");
+        Serial.print(data.currentA); Serial.println(" A");
+        Serial.print(data.voltage); Serial.print(" V");
 				Serial.println("");
         Serial.println("== Motor B ==");
-        Serial.print(getThrust()); Serial.print(" lb\t");
-        Serial.print(data.rpmA); Serial.print(" RPM\t");
-        Serial.print(data.currentA*data.voltage); Serial.print(" W ");
+        Serial.print(getThrust()); Serial.println(" lb");
+        Serial.print(data.rpmB); Serial.println(" RPM");
+        Serial.print(data.currentB*data.voltage); Serial.println(" W ");
+        Serial.print(data.currentB); Serial.println(" A");
+        Serial.print(data.voltage); Serial.print(" V");
         Serial.println("");
 			}
 			break;
@@ -371,20 +378,39 @@ void loop() {
 			Serial.println("Must define OUTPUT_TYPE.");    
     } 
   }
+
+  // Sweep through throttle
+  if (false) {
+    static bool initialized = false;
+    static long startTime;
+    if ( !initialized ) {
+      startTime = millis();
+      initialized = true;
+    }
+    //static long startTime = millis();
+    command.pwmA = 410*sin(2*PI/60*(millis()-startTime)/1000.0f)+(ESC_MIN_PULSE_WIDTH+ESC_MAX_PULSE_WIDTH)/2;
+    outputPWM(command.pwmA);
+    data.pwmA = command.pwmA;
+  }
   
   /** Serial input to control motor speed */
-  switch (OUTPUT_TYPE) {
-  case OUTPUT_TRANSFER:
-    if ( transfer.receive(&command) ) {
-      outputPWM(command.pwmA);
-    }  
-    break;
-  case OUTPUT_READABLE:
-    if (Serial.available() > 0) {
-      command.pwmA = map(Serial.read(),0,256,ESC_MIN_PULSE_WIDTH,ESC_MAX_PULSE_WIDTH);
-      outputPWM(command.pwmA);
+  if ( float(micros()-inputTimer)/1000000l > 0.1 ) {
+    inputTimer = micros();
+    switch (OUTPUT_TYPE) {
+    case OUTPUT_TRANSFER:
+      if ( transfer.receive(&command) ) {
+        outputPWM(command.pwmA-40);
+        data.pwmA = command.pwmA;
+        data.pwmB = command.pwmB;
+      }  
+      break;
+    case OUTPUT_READABLE:
+      if (Serial.available() > 0) {
+        command.pwmA = map(Serial.read(),0,256,ESC_MIN_PULSE_WIDTH,ESC_MAX_PULSE_WIDTH);
+        outputPWM(command.pwmA);
+      }
+      break;
     }
-    break;
   }
 
 }

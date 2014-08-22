@@ -7,9 +7,11 @@ import struct
 import time
 import datetime
 import plotly.plotly as py
+from optparse import OptionParser
 import json
 import signal
 import sys
+import csv
 
 class SerialConnection:
 	def openConnection(self,port,baudrate):
@@ -50,17 +52,10 @@ class SerialConnection:
 		calcChecksum = (~calcChecksum) % 2**16  # convert to uint16_t
 
 		if ( checksum != calcChecksum ):
-			print "Failed checksum."
+			#print "Failed checksum."
 			return
 		      
 		return data
-
-def sigint_handler(*args):
-	print "Closing serial port."
-	sc.ser.close()
-	print "Quiting gracefully."
-	time.sleep(0.25)
-	sys.exit()
 
 class PlotlyPlotter:
 	def initPlotly(self):
@@ -175,9 +170,20 @@ meter.init()
 
 sercon = SerialConnection()
 
+parser = OptionParser()
+parser.add_option("-o","--output",dest="filename",help="Output file name.",metavar="FILE")
+parser.add_option("-p","--port",dest="portname")
+(options,args) = parser.parse_args()
+
+isFile = False
+if options.filename:
+	csvfile = open(options.filename,'w')
+	csvwriter = csv.writer(csvfile,delimiter=',')
+	isFile = True
+
 connected = False
 try:
-	sercon.openConnection('/dev/ttyUSB1',115200)
+	sercon.openConnection(options.portname,115200)
 	connected = True
 except:
 	connected = False
@@ -207,6 +213,13 @@ stdscr.refresh()
 command = 1500
 streamCount = 0
 values = []
+
+def sigint_handler(*args):
+	print "Closing serial port."
+	sercon.ser.close()
+	print "Quiting gracefully."
+	time.sleep(0.25)
+	sys.exit()
 
 def getMotorFromTerminal():
 	global command
@@ -254,19 +267,20 @@ def updatePlotly():
 	if values is not None:
 		global streamCount
 		streamCount += 1
-		#plotter.streamToPlotly(values)
-		stdscr.addstr(10,5,"Thrust:\t%10.2f lb\t%10.0f g"%(values[3],values[3]*453.6))
-		stdscr.addstr(11,5,"RPM:\t%10.0f rev/min"%(values[2]))
-		stdscr.addstr(12,5,"Power:\t%10.0f W"%(values[1]))
-		stdscr.addstr(13,5,"Voltage:\t%10.2f V"%(values[0]))
+		plotter.streamToPlotly(values)
+		stdscr.addstr(10,5,"Thrust:\t%10.2f lb\t%10.0f g"%(values[5],values[5]*453.6))
+		stdscr.addstr(11,5,"RPM:\t%10.0f rev/min"%(values[0]))
+		stdscr.addstr(12,5,"Power:\t%10.0f W"%(values[2]*values[4]))
+		stdscr.addstr(13,5,"Voltage:\t%10.2f V"%(values[4]))
+		stdscr.addstr(14,5,"PWM:    \t%g\t%g us"%(values[6],values[7]))
 		stdscr.addstr(16,0,"Plotly Stream Data Points Sent: %10.0f"%(streamCount))
 		
 def updateHourMeter():
 	global values
 	isMetering = False
-	if values[2] > 60:
+	if values[0] > 60:
 		isMetering = True
-	meter.meterTime(isMetering,values[2],values[3])
+	meter.meterTime(isMetering,values[0],values[5])
 	stdscr.addstr(20,0,"Cumulative Running Time:\t%s"%(str(datetime.timedelta(seconds=meter.getCumulativeTime()))))
 	stdscr.addstr(21,0,"Cumulative Revolutions:\t\t%10.0f"%(meter.getCumulativeRPSxTime()))
 	stdscr.addstr(22,0,"Average Thrust:\t\t\t%10.2f"%(meter.getCumulativeThrustxTime()/(meter.getCumulativeTime()+0.001)))
@@ -282,8 +296,13 @@ if __name__ == '__main__':
 	lastMeterRecord = time.time()
 	errorCount = 0
 
-	formatString = 'HHffff'
+	formatString = 'HHffffHH'
 	bldcdata = []
+
+	if isFile:
+		csvwriter.writerow(["rpma","rpmb","currentA","currentB","voltage","thrust","pwmA","pwmB"])
+
+	sendCount = 0
 
 	while True:
 		if time.time() - lastSerialRead > 0.025:
@@ -292,6 +311,8 @@ if __name__ == '__main__':
 			bldcdata = sercon.read(length)
 			if bldcdata is not None:
 				values = struct.unpack(formatString,bldcdata)
+				if isFile:
+					csvwriter.writerow(values)
 			
 		if True and (time.time() - lastPlotlyUpdate > 0.20):
 			try:
@@ -306,15 +327,24 @@ if __name__ == '__main__':
 			
 
 		getMotorFromTerminal()
+		getMotorFromTerminal()
+		getMotorFromTerminal()
+		getMotorFromTerminal()
+		getMotorFromTerminal()
 		
 		if time.time() - lastCommandUpdate > 0.1 and command is not lastCommand and connected:
-			sercon.ser.write('\xFF\xFA')
+			stdscr.addstr(30,0,"Sent: \t\t\t%g"%(sendCount))
+			sendCount += 1
+			sercon.ser.write('\xFF')
+			sercon.ser.write('\xFA')
 			txData = struct.pack('HH',command,command)
 			crc16 = crcmod.mkCrcFun(0x11021,0xFFFF,True)
 			calcChecksum = crc16(txData)
 			calcChecksum = (~calcChecksum) % 2**16  # convert to uint16_t
-			sercon.ser.write(txData)
-			sercon.ser.write(struct.pack('H',calcChecksum))
+			for i in range(len(txData)):
+				sercon.ser.write(txData[i])
+			sercon.ser.write(struct.pack('H',calcChecksum)[0])
+			sercon.ser.write(struct.pack('H',calcChecksum)[1])
 
 			lastCommand = command
 			lastCommandUpdate = time.time()
