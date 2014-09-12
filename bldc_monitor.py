@@ -15,7 +15,7 @@ import csv
 
 class SerialConnection:
 	def openConnection(self,port,baudrate):
-		self.ser = serial.Serial(port,baudrate,timeout=0.25,writeTimeout=0)
+		self.ser = serial.Serial(port,baudrate,timeout=0.05,writeTimeout=0)
 		time.sleep(1.0)
 		if self.ser.isOpen():
 			print "Serial port opened."
@@ -183,7 +183,7 @@ if options.filename:
 
 connected = False
 try:
-	sercon.openConnection(options.portname,115200)
+	sercon.openConnection(options.portname,57600)
 	connected = True
 except:
 	connected = False
@@ -262,18 +262,20 @@ def readSerial():
 	else:
 		values = sercon.readMessageFake()
 
+def updateCurses():
+	stdscr.addstr(10,5,"Thrust:\t%10.2f lb\t%10.0f g"%(values[5],values[5]*453.6))
+        stdscr.addstr(11,5,"RPM:\t%10.0f rev/min"%(values[0]))
+        stdscr.addstr(12,5,"Power:\t%10.0f W"%(values[2]*values[4]))
+        stdscr.addstr(13,5,"Voltage:\t%10.2f V"%(values[4]))
+        stdscr.addstr(14,5,"PWM:    \t%g\t%g us"%(values[6],values[7]))
+        stdscr.addstr(16,0,"Plotly Stream Data Points Sent: %10.0f"%(streamCount))
+
 def updatePlotly():
 	global values
 	if values is not None:
 		global streamCount
 		streamCount += 1
 		plotter.streamToPlotly(values)
-		stdscr.addstr(10,5,"Thrust:\t%10.2f lb\t%10.0f g"%(values[5],values[5]*453.6))
-		stdscr.addstr(11,5,"RPM:\t%10.0f rev/min"%(values[0]))
-		stdscr.addstr(12,5,"Power:\t%10.0f W"%(values[2]*values[4]))
-		stdscr.addstr(13,5,"Voltage:\t%10.2f V"%(values[4]))
-		stdscr.addstr(14,5,"PWM:    \t%g\t%g us"%(values[6],values[7]))
-		stdscr.addstr(16,0,"Plotly Stream Data Points Sent: %10.0f"%(streamCount))
 		
 def updateHourMeter():
 	global values
@@ -305,16 +307,17 @@ if __name__ == '__main__':
 	sendCount = 0
 
 	while True:
-		if time.time() - lastSerialRead > 0.025:
+		if time.time() - lastSerialRead > 0.05:
 			lastSerialRead = time.time()
 			length = struct.calcsize(formatString)
 			bldcdata = sercon.read(length)
 			if bldcdata is not None:
 				values = struct.unpack(formatString,bldcdata)
+				updateCurses()
 				if isFile:
 					csvwriter.writerow(values)
 			
-		if True and (time.time() - lastPlotlyUpdate > 0.20):
+		if False and (time.time() - lastPlotlyUpdate > 0.50):
 			try:
 				updatePlotly()
 			except IOError:
@@ -322,17 +325,15 @@ if __name__ == '__main__':
 				time.sleep(5)
 			lastPlotlyUpdate = time.time()
 			
-		if time.time() - lastMeterRecord > 0.20:
+		if False and time.time() - lastMeterRecord > 0.20:
+			lastMeterRecord = time.time()
 			updateHourMeter()
 			
 
 		getMotorFromTerminal()
 		getMotorFromTerminal()
-		getMotorFromTerminal()
-		getMotorFromTerminal()
-		getMotorFromTerminal()
 		
-		if time.time() - lastCommandUpdate > 0.1 and command is not lastCommand and connected:
+		if (( time.time() - lastCommandUpdate > 0.1 and command is not lastCommand ) or (time.time()-lastCommandUpdate > 0.5)) and connected:
 			stdscr.addstr(30,0,"Sent: \t\t\t%g"%(sendCount))
 			sendCount += 1
 			sercon.ser.write('\xFF')

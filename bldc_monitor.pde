@@ -304,7 +304,7 @@ void outputPWM(uint16_t _pwm) {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(57600);
   initTachometer();
   setTareForce();
 
@@ -312,6 +312,11 @@ void setup() {
   
   outputPWM((ESC_MAX_PULSE_WIDTH+ESC_MIN_PULSE_WIDTH)/2);
   delay(1000);
+
+  command.pwmA = 1500;
+  command.pwmB = 1500;
+  data.pwmA = command.pwmA;
+  data.pwmB = command.pwmB;
 }
 
 void loop() {
@@ -342,7 +347,7 @@ void loop() {
    * 115200 bits/s x 1/240 messages/bit = 480 messages/s
    * 
    * can be sent under ideal conditions. In practice, this number will be lower. */
-  if ( float(micros()-outputTimer)/1000000l > 0.1 ) {
+  if ( float(micros()-outputTimer)/1000000l > 0.25 ) {
     outputTimer = micros();
     
     switch ( OUTPUT_TYPE ) {
