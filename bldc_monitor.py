@@ -52,7 +52,7 @@ class SerialConnection:
 		calcChecksum = (~calcChecksum) % 2**16  # convert to uint16_t
 
 		if ( checksum != calcChecksum ):
-			#print "Failed checksum."
+			print "Failed checksum."
 			return
 		      
 		return data

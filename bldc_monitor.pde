@@ -404,7 +404,7 @@ void loop() {
     switch (OUTPUT_TYPE) {
     case OUTPUT_TRANSFER:
       if ( transfer.receive(&command) ) {
-        outputPWM(command.pwmA-40);
+        outputPWM(command.pwmA);
         data.pwmA = command.pwmA;
         data.pwmB = command.pwmB;
       }  
