@@ -30,11 +30,11 @@
 volatile uint32_t pulseCountA = 0;
 volatile uint32_t pulseTimerA = 0;
 volatile uint32_t lastPulseTimerA = 0;
-volatile int32_t rpsA = 0;
+volatile int32_t ppsA = 0;
 volatile uint32_t pulseCountB = 0;
 volatile uint32_t pulseTimerB = 0;
 volatile uint32_t lastPulseTimerB = 0;
-volatile int32_t rpsB = 0;
+volatile int32_t ppsB = 0;
 
 uint32_t outputTimer = 0;
 
@@ -64,28 +64,28 @@ Transfer transfer;
  * pulses (basically debouncing the pulse).
  */
 ISR(INT0_vect) {
-  // Pulses are between 480 us and 200 us (at 1.67 kHz)
-  if ( micros()-lastPulseTimerA > 200 ) {
+  // Pulses are between 4800 us and 2500 us
+  if ( micros()-lastPulseTimerA > 2500 ) {
     pulseCountA++;
     lastPulseTimerA = micros();
   }
   
-  if ( pulseCountA > 10 ) {
-    rpsA = pulseCountA/(float(micros()-pulseTimerA)/1000000.0f);
+  if ( pulseCountA > 30 ) {
+    ppsA = pulseCountA/(float(micros()-pulseTimerA)/1000000.0f);
     pulseTimerA = micros();
     pulseCountA = 0;
   }
 }
 
 ISR(INT1_vect) {
-  // Pulses are between 480 us and 200 us (at 1.67 kHz)
-  if ( micros()-lastPulseTimerB > 200 ) {
+  // Pulses are between 4800 us and 2500 us
+  if ( micros()-lastPulseTimerB > 2500 ) {
     pulseCountB++;
     lastPulseTimerB = micros();
   }
   
-  if ( pulseCountB > 10 ) {
-    rpsB = pulseCountB/(float(micros()-pulseTimerB)/1000000.0f);
+  if ( pulseCountB > 30 ) {
+    ppsB = pulseCountB/(float(micros()-pulseTimerB)/1000000.0f);
     pulseTimerB = micros();
     pulseCountB = 0;
   }
@@ -104,7 +104,7 @@ static __inline__ void checkForZeroPulses() {
   }
   
   if ( micros()-safePulseTimer > 300000l ) {
-    rpsA = 0;
+    ppsA = 0;
   }
 
   ATOMIC_BLOCK(ATOMIC_FORCEON)
@@ -113,7 +113,7 @@ static __inline__ void checkForZeroPulses() {
   }
   
   if ( micros()-safePulseTimer > 300000l ) {
-    rpsB = 0;
+    ppsB = 0;
   }
 }
 
@@ -144,7 +144,7 @@ void filterRPM(int16_t &rpm,int16_t newRPM,float dt) {
 
   float alpha = dt/(dt+tau);
   
-  rpm = rpm*(1-alpha) + newRPM/NUMBER_OF_MOTOR_POLES*2*alpha;
+  rpm = rpm*(1-alpha) + newRPM*alpha;
 }
 
 /** This function is from http://hacking.majenko.co.uk/making-accurate-adc-readings-on-arduino.
@@ -335,8 +335,8 @@ void loop() {
     measureCurrent(dt);
     measureForce(dt);
     checkForZeroPulses();
-    filterRPM(data.rpmA,rpsA*60,dt);
-    filterRPM(data.rpmB,rpsB*60,dt);
+    filterRPM(data.rpmA,ppsA*60/NUMBER_OF_MOTOR_POLES*2,dt);
+    filterRPM(data.rpmB,ppsB*60/NUMBER_OF_MOTOR_POLES*2,dt);
     data.thrust = getThrust();
     measurementTimer = micros();
   }

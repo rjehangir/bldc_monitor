@@ -298,7 +298,7 @@ if __name__ == '__main__':
 	lastMeterRecord = time.time()
 	errorCount = 0
 
-	formatString = 'HHffffHH'
+	formatString = 'hhffffhh'
 	bldcdata = []
 
 	if isFile:
