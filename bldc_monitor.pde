@@ -2,10 +2,11 @@
 #include <util/atomic.h>
 #include "Transfer.h"
 
-#define OUTPUT_TRANSFER 1
-#define OUTPUT_READABLE 2
+#define OUTPUT_TRANSFER      1
+#define OUTPUT_READABLE      2
+#define OUTPUT_PHANT         3
 
-#define OUTPUT_TYPE OUTPUT_TRANSFER
+#define OUTPUT_TYPE OUTPUT_PHANT
 
 #define VOLTAGE_SENSE_PIN A0
 #define CURRENT_SENSE_PIN_A A2
@@ -19,8 +20,8 @@
 
 #define NUMBER_OF_MOTOR_POLES 12
 
-#define ESC_MAX_PULSE_WIDTH 1060
-#define ESC_MIN_PULSE_WIDTH 1860
+#define ESC_MAX_PULSE_WIDTH 1100
+#define ESC_MIN_PULSE_WIDTH 1900
 
 #define DISTANCE_FROM_PROPELLER_AXIS_TO_PIVOT (11.0f)
 #define DISTANCE_FROM_LOAD_CELL_AXIS_TO_PIVOT (12.0f)
@@ -298,19 +299,19 @@ float getThrust() {
 }
 
 /** Outputs a PWM signal to control the motor controller. Outputs to digital pins 9 and 10. */
-void outputPWM(uint16_t _pwm) {
-  OCR1A = _pwm*2;
-  OCR1B = _pwm*2;
+void outputPWM(uint16_t _pwmA, uint16_t _pwmB) {
+  OCR1A = _pwmA*2;
+  OCR1B = _pwmB*2;
 }
 
 void setup() {
-  Serial.begin(57600);
+  Serial.begin(19200);
   initTachometer();
   setTareForce();
 
   transfer.setStream(&Serial);
   
-  outputPWM((ESC_MAX_PULSE_WIDTH+ESC_MIN_PULSE_WIDTH)/2);
+  outputPWM((ESC_MAX_PULSE_WIDTH+ESC_MIN_PULSE_WIDTH)/2,(ESC_MAX_PULSE_WIDTH+ESC_MIN_PULSE_WIDTH)/2);
   delay(1000);
 
   command.pwmA = 1500;
@@ -347,13 +348,13 @@ void loop() {
    * 115200 bits/s x 1/240 messages/bit = 480 messages/s
    * 
    * can be sent under ideal conditions. In practice, this number will be lower. */
-  if ( float(micros()-outputTimer)/1000000l > 0.25 ) {
+  static float periodLength = 0.25;
+  if ( float(micros()-outputTimer)/1000000l > periodLength ) {
     outputTimer = micros();
     
     switch ( OUTPUT_TYPE ) {
     case OUTPUT_TRANSFER:
-			
-	{
+			{
         transfer.send(&data);
 			}
 			break;
@@ -379,6 +380,25 @@ void loop() {
         Serial.println("");
 			}
 			break;
+    case OUTPUT_PHANT:
+      {
+        // Set period to 10s so we don't overload Sparkfun
+        periodLength = 10;
+        Serial.print("voltage=");
+        Serial.print(data.voltage,2);
+        Serial.print("&current=");
+        Serial.print(data.currentA,2);
+        Serial.print("&power=");
+        Serial.print(data.currentA*data.voltage,1);
+        Serial.print("&rpm=");
+        Serial.print(float(data.rpmA),0);
+        Serial.print("&thrust=");
+        Serial.print(getThrust(),2);
+        Serial.print("&signal=");
+        Serial.print(float(data.pwmA),0);
+        Serial.println("");
+      }
+      break;
 		default:
 			Serial.println("Must define OUTPUT_TYPE.");    
     } 
@@ -394,7 +414,7 @@ void loop() {
     }
     //static long startTime = millis();
     command.pwmA = 410*sin(2*PI/60*(millis()-startTime)/1000.0f)+(ESC_MIN_PULSE_WIDTH+ESC_MAX_PULSE_WIDTH)/2;
-    outputPWM(command.pwmA);
+    outputPWM(command.pwmA,command.pwmA);
     data.pwmA = command.pwmA;
   }
   
@@ -404,15 +424,38 @@ void loop() {
     switch (OUTPUT_TYPE) {
     case OUTPUT_TRANSFER:
       if ( transfer.receive(&command) ) {
-        outputPWM(command.pwmA);
+        outputPWM(command.pwmA,command.pwmA);
         data.pwmA = command.pwmA;
         data.pwmB = command.pwmB;
       }  
       break;
+    case OUTPUT_PHANT:
+      if (Serial.available() > 0) {
+        uint8_t buffer[32];
+        uint8_t thrusterToSet = Serial.read();
+
+        for ( uint8_t i = 0 ; i < 32 ; i++ ) {
+          buffer[i] = Serial.read();
+          if ( buffer[i] == '\n' || buffer[i] == '\r' || buffer[i] == '\0' ) {
+            buffer[i] = '\0';
+            break;
+          }
+        }
+
+        if ( thrusterToSet == 'a' ) {
+          command.pwmA = constrain(atoi(reinterpret_cast<const char*>(buffer)),1000,2000);
+        } else if ( thrusterToSet == 'b' ) {
+          command.pwmB = constrain(atoi(reinterpret_cast<const char*>(buffer)),1000,2000);
+        }
+        data.pwmA = command.pwmA;
+        data.pwmB = command.pwmB;
+        outputPWM(command.pwmA,command.pwmB);
+      }
+      break;
     case OUTPUT_READABLE:
       if (Serial.available() > 0) {
         command.pwmA = map(Serial.read(),0,256,ESC_MIN_PULSE_WIDTH,ESC_MAX_PULSE_WIDTH);
-        outputPWM(command.pwmA);
+        outputPWM(command.pwmA,command.pwmA);
       }
       break;
     }

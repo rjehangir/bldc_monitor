@@ -183,7 +183,7 @@ if options.filename:
 
 connected = False
 try:
-	sercon.openConnection(options.portname,57600)
+	sercon.openConnection(options.portname,19200)
 	connected = True
 except:
 	connected = False
