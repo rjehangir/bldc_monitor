@@ -28,6 +28,7 @@ getURL = 'http://data.sparkfun.com/input/'+settings["dataPublicKey"]
 
 import time
 lastCommand = time.time()
+lastSend = time.time()
 
 import sys
 
@@ -37,7 +38,8 @@ while True:
 	except IOError:
 		print "Unexpected error:", sys.exc_info()[0]
 
-	if len(data) > 0:
+	if len(data) > 0 and time.time() - lastSend > 5.0:
+		lastSend = time.time()
 		try: 
 			print data
 			r = requests.get(getURL+'?private_key='+settings["dataPrivateKey"]+'&'+data)
