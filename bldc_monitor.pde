@@ -5,23 +5,29 @@
 #define OUTPUT_TRANSFER      1
 #define OUTPUT_READABLE      2
 #define OUTPUT_PHANT         3
+#define INPUT_TRANSFER       1
+#define INPUT_READABLE       2
+#define INPUT_PHANT          3
+#define INPUT_POT            4
 
-#define OUTPUT_TYPE OUTPUT_PHANT
+#define OUTPUT_TYPE OUTPUT_READABLE
+#define INPUT_TYPE INPUT_POT
 
 #define VOLTAGE_SENSE_PIN A0
 #define CURRENT_SENSE_PIN_A A2
 #define CURRENT_SENSE_PIN_B A3
 #define FORCE_SENSE_PIN_A A6
 #define FORCE_SENSE_PIN_B A7
+#define INPUT_POT_PIN A6
 #define TACHOMETER_INT_PIN_A 2
-#define TACHOMETER_INT_PIN_B 3 // ??
+#define TACHOMETER_INT_PIN_B 3
 #define SERVO1 9
 #define SERVO2 10
 
 #define NUMBER_OF_MOTOR_POLES 12
 
-#define ESC_MAX_PULSE_WIDTH 1100
-#define ESC_MIN_PULSE_WIDTH 1900
+#define ESC_MIN_PULSE_WIDTH 1100
+#define ESC_MAX_PULSE_WIDTH 1900
 
 #define DISTANCE_FROM_PROPELLER_AXIS_TO_PIVOT (11.0f)
 #define DISTANCE_FROM_LOAD_CELL_AXIS_TO_PIVOT (12.0f)
@@ -421,15 +427,15 @@ void loop() {
   /** Serial input to control motor speed */
   if ( float(micros()-inputTimer)/1000000l > 0.1 ) {
     inputTimer = micros();
-    switch (OUTPUT_TYPE) {
-    case OUTPUT_TRANSFER:
+    switch (INPUT_TYPE) {
+    case INPUT_TRANSFER:
       if ( transfer.receive(&command) ) {
         outputPWM(command.pwmA,command.pwmA);
         data.pwmA = command.pwmA;
         data.pwmB = command.pwmB;
       }  
       break;
-    case OUTPUT_PHANT:
+    case INPUT_PHANT:
       if (Serial.available() > 0) {
         uint8_t buffer[32];
         uint8_t thrusterToSet = Serial.read();
@@ -452,10 +458,22 @@ void loop() {
         outputPWM(command.pwmA,command.pwmB);
       }
       break;
-    case OUTPUT_READABLE:
+    case INPUT_READABLE:
       if (Serial.available() > 0) {
         command.pwmA = map(Serial.read(),0,256,ESC_MIN_PULSE_WIDTH,ESC_MAX_PULSE_WIDTH);
         outputPWM(command.pwmA,command.pwmA);
+      }
+      break;
+    case INPUT_POT:
+      {
+        static const float alpha = 0.1/(0.5+0.1);
+        static float potentiometer;
+
+        potentiometer = potentiometer*(1-alpha) + analogRead(INPUT_POT_PIN)*alpha;
+
+        data.pwmA = map(potentiometer,0,1023,1100,1900);
+        data.pwmB = data.pwmA;
+        outputPWM(data.pwmA,data.pwmB);
       }
       break;
     }
