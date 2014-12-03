@@ -231,9 +231,16 @@ void measureVoltage(float dt) {
  * slightly. The low pass filter has a time constant of 0.25 s.
  */
 void measureCurrent(float dt) {
+  #define USE_ACS714
+  #ifdef USE_ACS714
+  const static float k = 0.01481086525;
+  const static float tau = 0.25;
+  const static int16_t center = 511; // equivalent to 0.5 V
+  #else
   const static float k = 0.0073498;
   const static float tau = 0.25;
   const static int16_t center = 102; // equivalent to 0.5 V
+  #endif
   
   static bool initialized = false;
   if ( !initialized ) {
@@ -375,14 +382,16 @@ void loop() {
 				Serial.print(data.rpmA); Serial.println(" RPM");
 				Serial.print(data.currentA*data.voltage); Serial.println(" W");
         Serial.print(data.currentA); Serial.println(" A");
-        Serial.print(data.voltage); Serial.print(" V");
+        Serial.print(data.voltage); Serial.println(" V");
+        Serial.print(data.pwmA); Serial.print(" us");
 				Serial.println("");
         Serial.println("== Motor B ==");
         Serial.print(getThrust()); Serial.println(" lb");
         Serial.print(data.rpmB); Serial.println(" RPM");
         Serial.print(data.currentB*data.voltage); Serial.println(" W ");
         Serial.print(data.currentB); Serial.println(" A");
-        Serial.print(data.voltage); Serial.print(" V");
+        Serial.print(data.voltage); Serial.println(" V");
+        Serial.print(data.pwmB); Serial.print(" us");
         Serial.println("");
 			}
 			break;
@@ -466,8 +475,8 @@ void loop() {
       break;
     case INPUT_POT:
       {
-        static const float alpha = 0.1/(0.5+0.1);
-        static float potentiometer;
+        static const float alpha = 0.1/(0.25+0.1);
+        static float potentiometer = 1500;
 
         potentiometer = potentiometer*(1-alpha) + analogRead(INPUT_POT_PIN)*alpha;
 
